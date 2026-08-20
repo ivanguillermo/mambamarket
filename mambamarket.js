@@ -3,7 +3,7 @@ const WHATSAPP_NUMERO = "584126216661"; // Reemplaza con tu número de WhatsApp 
 
 let storeConfig = {
   nombre_tienda: "Mamba Market",
-  tasa_cambio: ,
+  tasa_cambio: 755,
   simbolo_moneda_alt: "Bs."
 };
 let productosList = [];
