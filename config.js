@@ -3,7 +3,7 @@ const CONFIG_LOCAL = {
     nombre_tienda: "Mamba Market",
     mensaje_bienvenida: "¡Bienvenidos a Mamba Market! Tu bodega y supermercado online.",
     horarios_entrega: "Lunes a Sábado de 8:00 AM a 7:00 PM",
-    tasa_cambio: , // Tasa base inicial ajustable
+    tasa_cambio: 755, // Tasa base inicial ajustable
     simbolo_moneda_alt: "Bs.",
     url_logo: "https://ivanguillermo.github.io/mambamarket/assets/mamba_logo.jpg",
     color_primario: "#1b5e20",
