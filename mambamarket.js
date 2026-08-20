@@ -13,28 +13,36 @@ let toastTimeout;
 
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("year").textContent = new Date().getFullYear();
-  cargarDatosTienda();
+  
+  // 1. Carga instantánea con el archivo local (config.js)
+  if (typeof CONFIG_LOCAL !== 'undefined') {
+    storeConfig = CONFIG_LOCAL.configuracion;
+    productosList = CONFIG_LOCAL.productos;
+    procesarCargaTienda();
+  }
+
+  // 2. Sincronización en segundo plano con Google Sheets
+  sincronizarConGoogleSheets();
 });
 
-// 1. Cargar datos del Backend
-async function cargarDatosTienda() {
+function procesarCargaTienda() {
+  aplicarConfiguracion();
+  renderizarCategorias();
+  renderizarProductos(productosList);
+  actualizarContadorCarrito();
+}
+
+async function sincronizarConGoogleSheets() {
   try {
     const res = await fetch(API_URL);
     const data = await res.json();
-
     if (data.status === "success") {
       storeConfig = { ...storeConfig, ...data.configuracion };
       productosList = data.productos;
-
-      aplicarConfiguracion();
-      renderizarCategorias();
-      renderizarProductos(productosList);
-      actualizarContadorCarrito();
-    } else {
-      document.getElementById("loading").textContent = "Error cargando los datos de la tienda.";
+      procesarCargaTienda(); // Refresca con datos frescos de la nube si hay conexión
     }
   } catch (error) {
-    document.getElementById("loading").textContent = "Error de conexión con el servidor.";
+    console.log("Modo offline activo: usando configuración local.");
   }
 }
 
@@ -71,12 +79,15 @@ function aplicarConfiguracion() {
   if (storeConfig.color_tarjeta) root.style.setProperty('--color-tarjeta', storeConfig.color_tarjeta);
   if (storeConfig.color_texto) root.style.setProperty('--color-texto', storeConfig.color_texto);
 
-  document.getElementById("loading").classList.add("hidden");
+  const loadingEl = document.getElementById("loading");
+  if (loadingEl) loadingEl.classList.add("hidden");
 }
 
 // 3. Renderizar Categorías
 function renderizarCategorias() {
   const container = document.getElementById("categorias-container");
+  if (!container) return;
+  
   const categorias = ["TODOS", ...new Set(productosList.map(p => p.categoria).filter(Boolean))];
   
   container.innerHTML = categorias.map(cat => `
@@ -95,6 +106,7 @@ function seleccionarCategoria(cat) {
 // 4. Renderizar Productos
 function renderizarProductos(lista) {
   const grid = document.getElementById("grid-productos");
+  if (!grid) return;
   grid.innerHTML = "";
 
   if (lista.length === 0) {
@@ -139,7 +151,9 @@ function renderizarProductos(lista) {
 
 // 5. Filtro de Búsqueda
 function filtrarProductos() {
-  const query = document.getElementById("input-busqueda").value.toLowerCase();
+  const inputBusqueda = document.getElementById("input-busqueda");
+  const query = inputBusqueda ? inputBusqueda.value.toLowerCase() : "";
+  
   const filtrados = productosList.filter(prod => {
     const coincideCat = categoriaActiva === "TODOS" || prod.categoria === categoriaActiva;
     const coincideTexto = prod.nombre.toLowerCase().includes(query) || (prod.marca && prod.marca.toLowerCase().includes(query));
@@ -151,9 +165,14 @@ function filtrarProductos() {
 // 6. Switch de Moneda (USD / Bs.)
 function toggleMoneda() {
   modoMonedaBs = !modoMonedaBs;
-  document.getElementById("label-currency").textContent = modoMonedaBs ? "Ver en USD" : "Ver en Bs.";
+  const labelCurrency = document.getElementById("label-currency");
+  if (labelCurrency) {
+    labelCurrency.textContent = modoMonedaBs ? "Ver en USD" : "Ver en Bs.";
+  }
   filtrarProductos();
-  if (!document.getElementById("modal-carrito").classList.contains("hidden")) {
+  
+  const modalCarrito = document.getElementById("modal-carrito");
+  if (modalCarrito && !modalCarrito.classList.contains("hidden")) {
     renderizarCarrito();
   }
 }
@@ -207,12 +226,16 @@ function guardarCarrito() {
 }
 
 function actualizarContadorCarrito() {
-  const totalItems = carrito.reduce((sum, item) => sum + item.cantidad, 0);
-  document.getElementById("cart-count").textContent = totalItems;
+  const cartCount = document.getElementById("cart-count");
+  if (cartCount) {
+    const totalItems = carrito.reduce((sum, item) => sum + item.cantidad, 0);
+    cartCount.textContent = totalItems;
+  }
 }
 
 function toggleCarrito() {
   const modal = document.getElementById("modal-carrito");
+  if (!modal) return;
   modal.classList.toggle("hidden");
   if (!modal.classList.contains("hidden")) {
     renderizarCarrito();
@@ -221,6 +244,7 @@ function toggleCarrito() {
 
 function renderizarCarrito() {
   const container = document.getElementById("items-carrito");
+  if (!container) return;
   container.innerHTML = "";
   
   if (carrito.length === 0) {
@@ -239,7 +263,6 @@ function renderizarCarrito() {
 
   carrito.forEach(item => {
     const subtotalUSD = item.precio * item.cantidad;
-    const subtotalBs = subtotalUSD * tasa;
     totalUSD += subtotalUSD;
 
     const row = document.createElement("div");
@@ -269,6 +292,8 @@ function renderizarCarrito() {
 // 8. Toast No Invasivo
 function mostrarToast(mensaje) {
   const toast = document.getElementById("toast");
+  if (!toast) return;
+  
   document.getElementById("toast-message").textContent = mensaje;
   toast.classList.remove("hidden");
 
