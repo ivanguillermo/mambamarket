@@ -1,15 +1,20 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbxYr-CK3-uTvdKZz-GItmYnGbaLAAzrtWlCPu3Pr9-KE3UNQBKsTnRMpU4Dy_Sw_pRqQw/exec";
 
-let storeConfig = {};
+let storeConfig = {
+  nombre_tienda: "Mamba Market",
+  tasa_cambio: 1,
+  simbolo_moneda_alt: "Bs."
+};
 let productosList = [];
 let carrito = JSON.parse(localStorage.getItem("mamba_carrito")) || [];
 let categoriaActiva = "TODOS";
+let modoMonedaBs = false; // Alterna entre USD principal y Bs principal
+let toastTimeout;
 
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("year").textContent = new Date().getFullYear();
   cargarDatosTienda();
 });
-
 
 // 1. Cargar datos del Backend
 async function cargarDatosTienda() {
@@ -18,7 +23,7 @@ async function cargarDatosTienda() {
     const data = await res.json();
 
     if (data.status === "success") {
-      storeConfig = data.configuracion;
+      storeConfig = { ...storeConfig, ...data.configuracion };
       productosList = data.productos;
 
       aplicarConfiguracion();
@@ -26,31 +31,40 @@ async function cargarDatosTienda() {
       renderizarProductos(productosList);
       actualizarContadorCarrito();
     } else {
-      document.getElementById("loading").textContent = "Error cargando la tienda.";
+      document.getElementById("loading").textContent = "Error cargando los datos de la tienda.";
     }
   } catch (error) {
     document.getElementById("loading").textContent = "Error de conexión con el servidor.";
   }
 }
 
-// 2. Aplicar estilos y textos dinámicos de Marca Blanca
+// 2. Aplicar Configuración de Marca y SEO
 function aplicarConfiguracion() {
-  document.title = storeConfig.nombre_tienda || "Tienda Online";
-  document.getElementById("nombre-tienda").textContent = storeConfig.nombre_tienda || "Mamba Market";
-  document.getElementById("footer-nombre").textContent = storeConfig.nombre_tienda || "Mamba Market";
-  document.getElementById("mensaje-bienvenida").textContent = storeConfig.mensaje_bienvenida || "¡Bienvenidos!";
+  const nombre = storeConfig.nombre_tienda || "Mamba Market";
+  document.title = `${nombre} | Supermercado Online`;
+  document.getElementById("nombre-tienda").textContent = nombre;
+  document.getElementById("footer-nombre").textContent = nombre;
+  document.getElementById("mensaje-bienvenida").textContent = storeConfig.mensaje_bienvenida || `¡Bienvenidos a ${nombre}!`;
   
+  const tasa = Number(storeConfig.tasa_cambio) || 1;
+  const simAlt = storeConfig.simbolo_moneda_alt || "Bs.";
+  document.getElementById("tasa-valor").textContent = `1 USD = ${simAlt} ${tasa.toFixed(2)}`;
+
   if (storeConfig.horarios_entrega) {
     document.getElementById("horario-atencion").textContent = `Horarios de Entrega: ${storeConfig.horarios_entrega}`;
   }
 
+  // Logo y Favicon Dinámico
   if (storeConfig.url_logo) {
-    const logo = document.getElementById("logo-tienda");
-    logo.src = storeConfig.url_logo;
-    logo.classList.remove("hidden");
+    const logoImg = document.getElementById("logo-tienda");
+    logoImg.src = storeConfig.url_logo;
+    logoImg.classList.remove("hidden");
+
+    const favicon = document.getElementById("dynamic-favicon");
+    favicon.href = storeConfig.url_logo;
   }
 
-  // Variables CSS dinámicas
+  // Variables CSS Dinámicas
   const root = document.documentElement;
   if (storeConfig.color_primario) root.style.setProperty('--color-primario', storeConfig.color_primario);
   if (storeConfig.color_fondo) root.style.setProperty('--color-fondo', storeConfig.color_fondo);
@@ -78,7 +92,7 @@ function seleccionarCategoria(cat) {
   filtrarProductos();
 }
 
-// 4. Renderizar Tarjetas de Productos
+// 4. Renderizar Productos
 function renderizarProductos(lista) {
   const grid = document.getElementById("grid-productos");
   grid.innerHTML = "";
@@ -92,19 +106,31 @@ function renderizarProductos(lista) {
   const simAlt = storeConfig.simbolo_moneda_alt || "Bs.";
 
   lista.forEach(prod => {
-    const precioBs = (Number(prod.precio_usd) * tasa).toFixed(2);
+    const precioUSD = Number(prod.precio_usd);
+    const precioBs = precioUSD * tasa;
+
+    const textoPrecioPrincipal = modoMonedaBs 
+      ? `${simAlt} ${precioBs.toFixed(2)}` 
+      : `$${precioUSD.toFixed(2)}`;
+      
+    const textoPrecioSecundario = modoMonedaBs 
+      ? `($${precioUSD.toFixed(2)}) / ${prod.unidad_medida || 'Unidad'}` 
+      : `(${simAlt} ${precioBs.toFixed(2)}) / ${prod.unidad_medida || 'Unidad'}`;
+
     const card = document.createElement("div");
     card.className = "product-card";
     card.innerHTML = `
       <div>
-        <img class="product-img" src="${prod.imagen_url || 'https://via.placeholder.com/200'}" alt="${prod.nombre}" loading="lazy">
+        <img class="product-img" src="${prod.imagen_url || 'https://via.placeholder.com/220x170.png?text=Mamba+Market'}" alt="${prod.nombre}" loading="lazy">
         <span class="product-brand">${prod.marca || ''}</span>
         <h4 class="product-title">${prod.nombre}</h4>
       </div>
       <div>
-        <div class="product-price">$${Number(prod.precio_usd).toFixed(2)}</div>
-        <div class="product-price-alt">${simAlt} ${precioBs} / ${prod.unidad_medida || 'Unidad'}</div>
-        <button class="btn-add" onclick="agregarAlCarrito('${prod.id_producto}')">Agregar</button>
+        <div class="product-price-main">${textoPrecioPrincipal}</div>
+        <div class="product-price-sub">${textoPrecioSecundario}</div>
+        <button class="btn-add" onclick="agregarAlCarrito('${prod.id_producto}')">
+          <i class="fa-solid fa-plus"></i> Agregar
+        </button>
       </div>
     `;
     grid.appendChild(card);
@@ -122,7 +148,17 @@ function filtrarProductos() {
   renderizarProductos(filtrados);
 }
 
-// 6. Manejo Básico de Carrito
+// 6. Switch de Moneda (USD / Bs.)
+function toggleMoneda() {
+  modoMonedaBs = !modoMonedaBs;
+  document.getElementById("label-currency").textContent = modoMonedaBs ? "Ver en USD" : "Ver en Bs.";
+  filtrarProductos();
+  if (!document.getElementById("modal-carrito").classList.contains("hidden")) {
+    renderizarCarrito();
+  }
+}
+
+// 7. Manejo del Carrito (+, -, Eliminar)
 function agregarAlCarrito(id) {
   const prod = productosList.find(p => p.id_producto === id);
   if (!prod) return;
@@ -131,11 +167,39 @@ function agregarAlCarrito(id) {
   if (itemEnCarrito) {
     itemEnCarrito.cantidad += 1;
   } else {
-    carrito.push({ id: prod.id_producto, nombre: prod.nombre, precio: Number(prod.precio_usd), cantidad: 1 });
+    carrito.push({
+      id: prod.id_producto,
+      nombre: prod.nombre,
+      precio: Number(prod.precio_usd),
+      unidad: prod.unidad_medida || 'Unidad',
+      cantidad: 1
+    });
   }
 
   guardarCarrito();
   actualizarContadorCarrito();
+  mostrarToast(`Agregado: ${prod.nombre}`);
+}
+
+function modificarCantidad(id, delta) {
+  const index = carrito.findIndex(item => item.id === id);
+  if (index === -1) return;
+
+  carrito[index].cantidad += delta;
+  if (carrito[index].cantidad <= 0) {
+    carrito.splice(index, 1);
+  }
+
+  guardarCarrito();
+  actualizarContadorCarrito();
+  renderizarCarrito();
+}
+
+function eliminarDelCarrito(id) {
+  carrito = carrito.filter(item => item.id !== id);
+  guardarCarrito();
+  actualizarContadorCarrito();
+  renderizarCarrito();
 }
 
 function guardarCarrito() {
@@ -158,28 +222,66 @@ function toggleCarrito() {
 function renderizarCarrito() {
   const container = document.getElementById("items-carrito");
   container.innerHTML = "";
-  let totalUSD = 0;
-
-  carrito.forEach((item, index) => {
-    const subtotal = item.precio * item.cantidad;
-    totalUSD += subtotal;
-
-    const div = document.createElement("div");
-    div.style.cssText = "display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px;";
-    div.innerHTML = `
-      <span>${item.nombre} x${item.cantidad}</span>
-      <strong>$${subtotal.toFixed(2)}</strong>
-    `;
-    container.appendChild(div);
-  });
+  
+  if (carrito.length === 0) {
+    container.innerHTML = `<div style="text-align: center; color: #94a3b8; margin-top: 40px;">
+      <i class="fa-solid fa-basket-shopping" style="font-size: 2.5rem; margin-bottom: 10px;"></i>
+      <p>Tu carrito está vacío</p>
+    </div>`;
+    document.getElementById("total-usd").textContent = "$0.00";
+    document.getElementById("total-bs").textContent = "Bs. 0.00";
+    return;
+  }
 
   const tasa = Number(storeConfig.tasa_cambio) || 1;
   const simAlt = storeConfig.simbolo_moneda_alt || "Bs.";
+  let totalUSD = 0;
 
+  carrito.forEach(item => {
+    const subtotalUSD = item.precio * item.cantidad;
+    const subtotalBs = subtotalUSD * tasa;
+    totalUSD += subtotalUSD;
+
+    const row = document.createElement("div");
+    row.className = "cart-item-row";
+    row.innerHTML = `
+      <div class="cart-item-info">
+        <div class="cart-item-name">${item.nombre}</div>
+        <div class="cart-item-price">$${item.precio.toFixed(2)} c/u</div>
+      </div>
+      <div class="cart-qty-controls">
+        <button class="btn-qty" onclick="modificarCantidad('${item.id}', -1)">-</button>
+        <span style="font-weight: 600; font-size: 13px;">${item.cantidad}</span>
+        <button class="btn-qty" onclick="modificarCantidad('${item.id}', 1)">+</button>
+        <button class="btn-remove" onclick="eliminarDelCarrito('${item.id}')" title="Eliminar">
+          <i class="fa-regular fa-trash-can"></i>
+        </button>
+      </div>
+    `;
+    container.appendChild(row);
+  });
+
+  const totalBs = totalUSD * tasa;
   document.getElementById("total-usd").textContent = `$${totalUSD.toFixed(2)}`;
-  document.getElementById("total-bs").textContent = `${simAlt} ${(totalUSD * tasa).toFixed(2)}`;
+  document.getElementById("total-bs").textContent = `${simAlt} ${totalBs.toFixed(2)}`;
+}
+
+// 8. Toast No Invasivo
+function mostrarToast(mensaje) {
+  const toast = document.getElementById("toast");
+  document.getElementById("toast-message").textContent = mensaje;
+  toast.classList.remove("hidden");
+
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => {
+    toast.classList.add("hidden");
+  }, 2200);
 }
 
 function iniciarCheckout() {
-  alert("Siguiente paso: Diseñar formulario de entrega/pickup y envío a WhatsApp.");
+  if (carrito.length === 0) {
+    alert("Tu carrito está vacío.");
+    return;
+  }
+  alert("Generando orden de pedido...");
 }
