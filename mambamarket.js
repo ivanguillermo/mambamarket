@@ -1,52 +1,84 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbxYr-CK3-uTvdKZz-GItmYnGbaLAAzrtWlCPu3Pr9-KE3UNQBKsTnRMpU4Dy_Sw_pRqQw/exec";
+const WHATSAPP_NUMERO = "584120000000"; // Reemplaza con tu número de WhatsApp de Mamba Market (código país + número)
 
 let storeConfig = {
   nombre_tienda: "Mamba Market",
-  tasa_cambio: 1,
+  tasa_cambio: 36.50,
   simbolo_moneda_alt: "Bs."
 };
 let productosList = [];
 let carrito = JSON.parse(localStorage.getItem("mamba_carrito")) || [];
 let categoriaActiva = "TODOS";
-let modoMonedaBs = false; // Alterna entre USD principal y Bs principal
+let modoMonedaBs = false;
 let toastTimeout;
 
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("year").textContent = new Date().getFullYear();
-  
-  // 1. Carga instantánea con el archivo local (config.js)
-  if (typeof CONFIG_LOCAL !== 'undefined') {
-    storeConfig = CONFIG_LOCAL.configuracion;
-    productosList = CONFIG_LOCAL.productos;
-    procesarCargaTienda();
-  }
-
-  // 2. Sincronización en segundo plano con Google Sheets
+  cargarProductosCSVLocal();
   sincronizarConGoogleSheets();
 });
+
+// 1. Cargar datos iniciales desde el CSV local del servidor
+async function cargarProductosCSVLocal() {
+  try {
+    const res = await fetch("productos.csv");
+    const csvText = await res.text();
+    productosList = parsearCSV(csvText);
+    
+    // Ordenar por popularidad (ventas desc) y limitar a los primeros 20
+    productosList.sort((a, b) => Number(b.ventas || 0) - Number(a.ventas || 0));
+    
+    procesarCargaTienda();
+  } catch (error) {
+    console.log("No se pudo cargar productos.csv local, esperando red.");
+  }
+}
+
+function parsearCSV(texto) {
+  const lineas = texto.trim().split("\n");
+  const headers = lineas[0].split(",").map(h => h.trim());
+  const resultados = [];
+
+  for (let i = 1; i < lineas.length; i++) {
+    const fila = lineas[i].split(",");
+    if (fila.length < headers.length) continue;
+    
+    const obj = {};
+    headers.forEach((h, index) => {
+      obj[h] = fila[index] ? fila[index].trim() : "";
+    });
+    resultados.push(obj);
+  }
+  return resultados;
+}
 
 function procesarCargaTienda() {
   aplicarConfiguracion();
   renderizarCategorias();
-  renderizarProductos(productosList);
+  // Mostrar estrictamente los primeros 20 productos ordenados por popularidad en la carga inicial
+  renderizarProductos(productosList.slice(0, 20));
   actualizarContadorCarrito();
 }
 
+// 2. Sincronización en segundo plano con Google Sheets
 async function sincronizarConGoogleSheets() {
   try {
     const res = await fetch(API_URL);
     const data = await res.json();
     if (data.status === "success") {
       storeConfig = { ...storeConfig, ...data.configuracion };
-      productosList = data.productos;
-      procesarCargaTienda(); // Refresca con datos frescos de la nube si hay conexión
+      if (data.productos && data.productos.length > 0) {
+        productosList = data.productos;
+        productosList.sort((a, b) => Number(b.ventas || 0) - Number(a.ventas || 0));
+      }
+      procesarCargaTienda();
     }
   } catch (error) {
-    console.log("Modo offline activo: usando configuración local.");
+    console.log("Modo offline: usando datos locales.");
   }
 }
 
-// 2. Aplicar Configuración de Marca y SEO
+// 3. Aplicar Configuración de Marca y SEO
 function aplicarConfiguracion() {
   const nombre = storeConfig.nombre_tienda || "Mamba Market";
   document.title = `${nombre} | Supermercado Online`;
@@ -62,7 +94,6 @@ function aplicarConfiguracion() {
     document.getElementById("horario-atencion").textContent = `Horarios de Entrega: ${storeConfig.horarios_entrega}`;
   }
 
-  // Logo y Favicon Dinámico
   if (storeConfig.url_logo) {
     const logoImg = document.getElementById("logo-tienda");
     logoImg.src = storeConfig.url_logo;
@@ -72,18 +103,11 @@ function aplicarConfiguracion() {
     favicon.href = storeConfig.url_logo;
   }
 
-  // Variables CSS Dinámicas
-  const root = document.documentElement;
-  if (storeConfig.color_primario) root.style.setProperty('--color-primario', storeConfig.color_primario);
-  if (storeConfig.color_fondo) root.style.setProperty('--color-fondo', storeConfig.color_fondo);
-  if (storeConfig.color_tarjeta) root.style.setProperty('--color-tarjeta', storeConfig.color_tarjeta);
-  if (storeConfig.color_texto) root.style.setProperty('--color-texto', storeConfig.color_texto);
-
   const loadingEl = document.getElementById("loading");
   if (loadingEl) loadingEl.classList.add("hidden");
 }
 
-// 3. Renderizar Categorías
+// 4. Renderizar Categorías
 function renderizarCategorias() {
   const container = document.getElementById("categorias-container");
   if (!container) return;
@@ -103,14 +127,14 @@ function seleccionarCategoria(cat) {
   filtrarProductos();
 }
 
-// 4. Renderizar Productos
+// 5. Renderizar Productos
 function renderizarProductos(lista) {
   const grid = document.getElementById("grid-productos");
   if (!grid) return;
   grid.innerHTML = "";
 
   if (lista.length === 0) {
-    grid.innerHTML = "<p>No se encontraron productos disponibles.</p>";
+    grid.innerHTML = "<p style='grid-column: span 2; text-align: center; color: #64748b;'>No se encontraron productos disponibles.</p>";
     return;
   }
 
@@ -149,7 +173,7 @@ function renderizarProductos(lista) {
   });
 }
 
-// 5. Filtro de Búsqueda
+// 6. Filtro de Búsqueda
 function filtrarProductos() {
   const inputBusqueda = document.getElementById("input-busqueda");
   const query = inputBusqueda ? inputBusqueda.value.toLowerCase() : "";
@@ -162,7 +186,7 @@ function filtrarProductos() {
   renderizarProductos(filtrados);
 }
 
-// 6. Switch de Moneda (USD / Bs.)
+// 7. Switch de Moneda
 function toggleMoneda() {
   modoMonedaBs = !modoMonedaBs;
   const labelCurrency = document.getElementById("label-currency");
@@ -177,7 +201,7 @@ function toggleMoneda() {
   }
 }
 
-// 7. Manejo del Carrito (+, -, Eliminar)
+// 8. Manejo del Carrito
 function agregarAlCarrito(id) {
   const prod = productosList.find(p => p.id_producto === id);
   if (!prod) return;
@@ -289,7 +313,7 @@ function renderizarCarrito() {
   document.getElementById("total-bs").textContent = `${simAlt} ${totalBs.toFixed(2)}`;
 }
 
-// 8. Toast No Invasivo
+// 9. Toast No Invasivo
 function mostrarToast(mensaje) {
   const toast = document.getElementById("toast");
   if (!toast) return;
@@ -303,10 +327,32 @@ function mostrarToast(mensaje) {
   }, 2200);
 }
 
+// 10. Finiquitar Pedido por WhatsApp
 function iniciarCheckout() {
   if (carrito.length === 0) {
     alert("Tu carrito está vacío.");
     return;
   }
-  alert("Generando orden de pedido...");
+
+  const tasa = Number(storeConfig.tasa_cambio) || 1;
+  const simAlt = storeConfig.simbolo_moneda_alt || "Bs.";
+  
+  let mensaje = `*¡Hola Mamba Market! Deseo realizar el siguiente pedido:*\n\n`;
+  let totalUSD = 0;
+
+  carrito.forEach((item, index) => {
+    const subtotal = item.precio * item.cantidad;
+    totalUSD += subtotal;
+    mensaje += `${index + 1}. *${item.nombre}* \n   Cantidad: ${item.cantidad} x $${item.precio.toFixed(2)} = *$${subtotal.toFixed(2)}*\n`;
+  });
+
+  const totalBs = totalUSD * tasa;
+  mensaje += `\n--------------------------\n`;
+  mensaje += `*Total USD:* $${totalUSD.toFixed(2)}\n`;
+  mensaje += `*Total Bs (${simAlt}):* ${simAlt} ${totalBs.toFixed(2)} (Tasa: ${tasa})\n`;
+  mensaje += `--------------------------\n`;
+  mensaje += `Quedo atento para coordinar el pago y la entrega. ¡Gracias!`;
+
+  const urlWhatsApp = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(mensaje)}`;
+  window.open(urlWhatsApp, "_blank");
 }
