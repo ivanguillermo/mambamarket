@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cargando tienda...</title>
+  <link rel="stylesheet" href="mambamarket.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+  <!-- Cabecera Dinámica -->
+  <header class="navbar">
+    <div class="nav-container">
+      <div class="brand">
+        <img id="logo-tienda" src="" alt="Logo" class="logo-img hidden">
+        <h1 id="nombre-tienda">Mamba Market</h1>
+      </div>
+      <div class="nav-actions">
+        <button id="btn-cart" class="cart-btn" onclick="toggleCarrito()">
+          <i class="fa-solid fa-cart-shopping"></i>
+          <span id="cart-count">0</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Banner de Bienvenida -->
+  <section class="banner">
+    <h2 id="mensaje-bienvenida">¡Bienvenidos!</h2>
+    <p id="horario-atencion"></p>
+  </section>
+
+  <!-- Buscador y Filtros -->
+  <div class="controls-container">
+    <div class="search-bar">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input type="text" id="input-busqueda" placeholder="Buscar productos, marcas..." oninput="filtrarProductos()">
+    </div>
+    <div id="categorias-container" class="categories-bar"></div>
+  </div>
+
+  <!-- Catálogo de Productos -->
+  <main class="main-content">
+    <div id="loading" class="spinner">Cargando catálogo...</div>
+    <div id="grid-productos" class="product-grid"></div>
+  </main>
+
+  <!-- Modal / Lateral del Carrito -->
+  <div id="modal-carrito" class="cart-modal hidden">
+    <div class="cart-content">
+      <div class="cart-header">
+        <h3>Tu Pedido</h3>
+        <button class="close-btn" onclick="toggleCarrito()">&times;</button>
+      </div>
+      <div id="items-carrito" class="cart-items"></div>
+      <div class="cart-footer">
+        <div class="cart-totals">
+          <p>Total USD: <strong id="total-usd">$0.00</strong></p>
+          <p>Total Bs: <strong id="total-bs">Bs. 0.00</strong></p>
+        </div>
+        <button id="btn-checkout" class="btn-primary" onclick="iniciarCheckout()">Continuar Pedido</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-links" id="social-links"></div>
+    <p>&copy; <span id="year"></span> <span id="footer-nombre"></span>. Todos los derechos reservados.</p>
+  </footer>
+
+  <script src="mambamarket.js"></script>
+</body>
+</html>
