@@ -1,0 +1,249 @@
+:root {
+  --color-primario: #2e7d32;
+  --color-fondo: #f8f9fa;
+  --color-tarjeta: #ffffff;
+  --color-texto: #212529;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  background-color: var(--color-fondo);
+  color: var(--color-texto);
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Navbar */
+.navbar {
+  background-color: var(--color-tarjeta);
+  padding: 12px 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.nav-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-img {
+  height: 40px;
+  width: auto;
+  border-radius: 4px;
+}
+
+.cart-btn {
+  background: var(--color-primario);
+  color: #fff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+  position: relative;
+}
+
+/* Banner */
+.banner {
+  text-align: center;
+  padding: 30px 20px;
+  background-color: var(--color-tarjeta);
+  margin-bottom: 20px;
+  border-bottom: 1px solid #eee;
+}
+
+/* Buscador y Categorías */
+.controls-container {
+  max-width: 1200px;
+  margin: 0 auto 20px auto;
+  padding: 0 20px;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  background: var(--color-tarjeta);
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 10px 15px;
+  margin-bottom: 15px;
+}
+
+.search-bar input {
+  border: none;
+  outline: none;
+  width: 100%;
+  margin-left: 10px;
+  font-size: 15px;
+}
+
+.categories-bar {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 5px;
+}
+
+.cat-btn {
+  background: var(--color-tarjeta);
+  border: 1px solid #ccc;
+  padding: 6px 14px;
+  border-radius: 15px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cat-btn.active {
+  background: var(--color-primario);
+  color: #fff;
+  border-color: var(--color-primario);
+}
+
+/* Grid de Productos */
+.main-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+.product-card {
+  background: var(--color-tarjeta);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.product-img {
+  width: 100%;
+  height: 180px;
+  object-fit: contain;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  background: #fdfdfd;
+}
+
+.product-brand {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #777;
+  font-weight: bold;
+}
+
+.product-title {
+  font-size: 14px;
+  margin: 5px 0;
+}
+
+.product-price {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--color-primario);
+}
+
+.product-price-alt {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 10px;
+}
+
+.btn-add {
+  background: var(--color-primario);
+  color: #fff;
+  border: none;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  width: 100%;
+}
+
+/* Modal Carrito */
+.cart-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 200;
+}
+
+.cart-content {
+  background: #fff;
+  width: 100%;
+  max-width: 380px;
+  height: 100%;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.cart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+.cart-items {
+  flex-grow: 1;
+  overflow-y: auto;
+  margin: 15px 0;
+}
+
+.cart-footer {
+  border-top: 1px solid #eee;
+  padding-top: 15px;
+}
+
+.btn-primary {
+  background: var(--color-primario);
+  color: #fff;
+  border: none;
+  padding: 12px;
+  width: 100%;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  margin-top: 10px;
+}
+
+.footer {
+  text-align: center;
+  padding: 30px;
+  margin-top: 40px;
+  border-top: 1px solid #eee;
+  font-size: 13px;
+  color: #666;
+}
