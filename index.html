@@ -3,7 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cargando tienda...</title>
+  
+  <!-- SEO & Metadatos Base -->
+  <title>Mamba Market | Tu Bodega y Supermercado Online</title>
+  <meta name="description" content="Compra víveres, alimentos, bebidas y productos para el hogar en Mamba Market. Precios actualizados en dólares y bolívares con entregas rápidas.">
+  <meta name="keywords" content="Mamba Market, supermercado, víveres, compras online, delivery, Venezuela, abarrotes">
+  <meta name="author" content="Mamba Market">
+  <meta name="robots" content="index, follow">
+  
+  <!-- Open Graph / Facebook / WhatsApp -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Mamba Market | Tu Bodegita Online">
+  <meta property="og:description" content="Catálogo completo de víveres, alimentos y artículos del hogar con entrega a domicilio.">
+  <meta property="og:image" content="https://via.placeholder.com/600x315.png?text=Mamba+Market">
+  
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Mamba Market | Tu Supermercado Online">
+  <meta name="twitter:description" content="Catálogo completo de víveres, alimentos y artículos del hogar.">
+  <meta name="twitter:image" content="https://via.placeholder.com/600x315.png?text=Mamba+Market">
+
+  <!-- Favicon Dinámico -->
+  <link id="dynamic-favicon" rel="icon" type="image/png" href="https://via.placeholder.com/32">
+
   <link rel="stylesheet" href="mambamarket.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -13,10 +35,17 @@
   <header class="navbar">
     <div class="nav-container">
       <div class="brand">
-        <img id="logo-tienda" src="" alt="Logo" class="logo-img hidden">
+        <img id="logo-tienda" src="" alt="Mamba Market Logo" class="logo-img hidden">
         <h1 id="nombre-tienda">Mamba Market</h1>
       </div>
+      
       <div class="nav-actions">
+        <!-- Switch de Moneda -->
+        <button id="btn-currency" class="currency-toggle-btn" onclick="toggleMoneda()">
+          <i class="fa-solid fa-coins"></i> <span id="label-currency">Ver en Bs.</span>
+        </button>
+
+        <!-- Botón Carrito -->
         <button id="btn-cart" class="cart-btn" onclick="toggleCarrito()">
           <i class="fa-solid fa-cart-shopping"></i>
           <span id="cart-count">0</span>
@@ -27,47 +56,61 @@
 
   <!-- Banner de Bienvenida -->
   <section class="banner">
-    <h2 id="mensaje-bienvenida">¡Bienvenidos!</h2>
+    <h2 id="mensaje-bienvenida">¡Bienvenidos a Mamba Market!</h2>
     <p id="horario-atencion"></p>
+    <div id="badge-tasa" class="rate-badge">Tasa del día: <strong id="tasa-valor">Cargando...</strong></div>
   </section>
 
   <!-- Buscador y Filtros -->
   <div class="controls-container">
     <div class="search-bar">
       <i class="fa-solid fa-magnifying-glass"></i>
-      <input type="text" id="input-busqueda" placeholder="Buscar productos, marcas..." oninput="filtrarProductos()">
+      <input type="text" id="input-busqueda" placeholder="Buscar por producto, marca o categoría..." oninput="filtrarProductos()">
     </div>
     <div id="categorias-container" class="categories-bar"></div>
   </div>
 
   <!-- Catálogo de Productos -->
   <main class="main-content">
-    <div id="loading" class="spinner">Cargando catálogo...</div>
+    <div id="loading" class="spinner">Cargando catálogo de productos...</div>
     <div id="grid-productos" class="product-grid"></div>
   </main>
 
-  <!-- Modal / Lateral del Carrito -->
+  <!-- Modal / Drawer del Carrito -->
   <div id="modal-carrito" class="cart-modal hidden">
+    <div class="cart-overlay" onclick="toggleCarrito()"></div>
     <div class="cart-content">
       <div class="cart-header">
-        <h3>Tu Pedido</h3>
+        <h3><i class="fa-solid fa-cart-shopping"></i> Tu Pedido</h3>
         <button class="close-btn" onclick="toggleCarrito()">&times;</button>
       </div>
       <div id="items-carrito" class="cart-items"></div>
       <div class="cart-footer">
         <div class="cart-totals">
-          <p>Total USD: <strong id="total-usd">$0.00</strong></p>
-          <p>Total Bs: <strong id="total-bs">Bs. 0.00</strong></p>
+          <div class="total-row">
+            <span>Total USD:</span>
+            <strong id="total-usd">$0.00</strong>
+          </div>
+          <div class="total-row secondary-total">
+            <span id="label-total-bs">Total Bs:</span>
+            <strong id="total-bs">Bs. 0.00</strong>
+          </div>
         </div>
         <button id="btn-checkout" class="btn-primary" onclick="iniciarCheckout()">Continuar Pedido</button>
       </div>
     </div>
   </div>
 
+  <!-- Notificación Toast No Invasiva -->
+  <div id="toast" class="toast hidden">
+    <i class="fa-solid fa-circle-check"></i>
+    <span id="toast-message">Producto agregado</span>
+  </div>
+
   <!-- Footer -->
   <footer class="footer">
     <div class="footer-links" id="social-links"></div>
-    <p>&copy; <span id="year"></span> <span id="footer-nombre"></span>. Todos los derechos reservados. LP FreelancerS</p>
+    <p>&copy; <span id="year"></span> <span id="footer-nombre">Mamba Market</span>. Todos los derechos reservados. LP Freelancers</p>
   </footer>
 
   <script src="mambamarket.js"></script>
