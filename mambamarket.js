@@ -1,9 +1,9 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbxYr-CK3-uTvdKZz-GItmYnGbaLAAzrtWlCPu3Pr9-KE3UNQBKsTnRMpU4Dy_Sw_pRqQw/exec";
-const WHATSAPP_NUMERO = "584120000000"; // Reemplaza con tu número de WhatsApp de Mamba Market (código país + número)
+const WHATSAPP_NUMERO = "584126216661"; // Reemplaza con tu número de WhatsApp de Mamba Market (código país + número)
 
 let storeConfig = {
   nombre_tienda: "Mamba Market",
-  tasa_cambio: 36.50,
+  tasa_cambio: ,
   simbolo_moneda_alt: "Bs."
 };
 let productosList = [];
