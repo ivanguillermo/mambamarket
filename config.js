@@ -1,8 +1,9 @@
 // config.js - Configuración general de la tienda
-const STORE_CONFIG = {
+let storeConfig = typeof STORE_CONFIG !== 'undefined' ? STORE_CONFIG : {
   nombre_tienda: "Mamba Market",
   tasa_cambio: 755,
   simbolo_moneda_alt: "Bs.",
+  zonas_delivery: [],
   mensaje_bienvenida: "¡Bienvenidos a Mamba Market! Tu bodega y supermercado online.",
   horarios_entrega: "Lunes a Sábado: 8:00 AM - 7:00 PM",
   url_logo: "https://ivanguillermo.github.io/mambamarket/assets/mamba_logo.jpg",
@@ -14,3 +15,5 @@ const STORE_CONFIG = {
   ],
   costo_por_kg_extra: 0.50 // Si supera el peso base, se cobra adicional por kilo
 };
+
+ 
