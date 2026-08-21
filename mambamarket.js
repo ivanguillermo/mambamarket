@@ -1,11 +1,10 @@
-// mambamarket.js - Lógica principal híbrida (CSV local + Sincronización Google Sheets)
-
+// mambamarket.js - Lógica principal híbrida
 const API_URL = "https://script.google.com/macros/s/AKfycbxYr-CK3-uTvdKZz-GItmYnGbaLAAzrtWlCPu3Pr9-KE3UNQBKsTnRMpU4Dy_Sw_pRqQw/exec";
-const WHATSAPP_NUMERO = "584126216661"; // Reemplaza con tu número de WhatsApp de Mamba Market
+const WHATSAPP_NUMERO = "584126216661";
 const CSV_URL = "productos.csv";
 
-// Inicializar storeConfig usando STORE_CONFIG de config.js si está disponible
-let storeConfig = typeof STORE_CONFIG !== 'undefined' ? STORE_CONFIG : {
+// Tomar configuración del config.js de forma segura sin re-declarar let duplicados
+let storeConfig = window.STORE_CONFIG || {
   nombre_tienda: "Mamba Market",
   tasa_cambio: 755,
   simbolo_moneda_alt: "Bs.",
