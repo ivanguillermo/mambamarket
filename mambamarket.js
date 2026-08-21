@@ -304,6 +304,13 @@ function agregarAlCarrito(id) {
   const prod = productosList.find(p => p.id_producto === id);
   if (!prod) return;
 
+  // Asegurar que el precio sea un número válido sin importar si viene con coma o punto
+  let precioLimpio = prod.precio_usd;
+  if (typeof precioLimpio === 'string') {
+    precioLimpio = Number(precioLimpio.replace(',', '.'));
+  }
+  precioLimpio = Number(precioLimpio) || 0;
+
   const itemEnCarrito = carrito.find(item => item.id === id);
   if (itemEnCarrito) {
     itemEnCarrito.cantidad += 1;
@@ -311,7 +318,7 @@ function agregarAlCarrito(id) {
     carrito.push({
       id: prod.id_producto,
       nombre: prod.nombre,
-      precio: Number(prod.precio_usd),
+      precio: precioLimpio,
       unidad: prod.unidad_medida || 'Unidad',
       cantidad: 1
     });
