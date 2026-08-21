@@ -576,3 +576,16 @@ function iniciarCheckout() {
   const urlWhatsApp = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(mensaje)}`;
   window.open(urlWhatsApp, "_blank");
 }
+async function pedirPermisoNotificaciones() {
+  if (!("Notification" in window)) {
+    console.warn("Este navegador no soporta notificaciones.");
+    return;
+  }
+
+  const permission = await Notification.requestPermission();
+  if (permission === "granted") {
+    // Aquí es donde obtienes el Token de Firebase si ya lo tienes implementado
+    console.log("Permiso concedido. Registrando token...");
+    // integrarFirebaseMessaging(); 
+  }
+}
