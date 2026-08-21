@@ -589,3 +589,24 @@ async function pedirPermisoNotificaciones() {
     // integrarFirebaseMessaging(); 
   }
 }
+
+function registrarTokenFirebase() {
+  const messaging = firebase.messaging();
+  
+  messaging.getToken({ vapidKey: 'TU_CLAVE_VAPID_DE_FIREBASE' })
+    .then((currentToken) => {
+      if (currentToken) {
+        // Enviamos al Apps Script
+        fetch('URL_DE_TU_WEB_APP_SCRIPT', {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'registrarToken',
+            id_cliente: 'usuario_' + Date.now(), // O un ID generado
+            token: currentToken
+          })
+        });
+      }
+    }).catch((err) => {
+      console.log('Error al obtener token:', err);
+    });
+}
