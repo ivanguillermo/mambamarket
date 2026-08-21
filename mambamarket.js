@@ -11,6 +11,7 @@ let carrito = JSON.parse(localStorage.getItem("mamba_carrito")) || [];
 let categoriaActiva = "TODOS";
 let modoMonedaBs = false;
 let toastTimeout;
+let zonaDeliverySeleccionada = "";
 
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("year").textContent = new Date().getFullYear();
@@ -283,11 +284,16 @@ function renderizarCarrito() {
 
   const tasa = Number(storeConfig.tasa_cambio) || 1;
   const simAlt = storeConfig.simbolo_moneda_alt || "Bs.";
-  let totalUSD = 0;
+  let totalProductosUSD = 0;
+  let pesoTotalKg = 0;
 
   carrito.forEach(item => {
     const subtotalUSD = item.precio * item.cantidad;
-    totalUSD += subtotalUSD;
+    totalProductosUSD += subtotalUSD;
+    
+    // Estimación de peso: si la unidad es Kg se multiplica exacto, sino estimamos 0.5kg por unidad genérica
+    const factorPeso = item.unidad === "Kg" ? 1 : 0.5;
+    pesoTotalKg += (item.cantidad * factorPeso);
 
     const row = document.createElement("div");
     row.className = "cart-item-row";
@@ -308,9 +314,49 @@ function renderizarCarrito() {
     container.appendChild(row);
   });
 
-  const totalBs = totalUSD * tasa;
-  document.getElementById("total-usd").textContent = `$${totalUSD.toFixed(2)}`;
+  // Cálculo de Delivery basado en zona y peso aproximado
+  let costoDeliveryUSD = 0;
+  const zonas = storeConfig.zonas_delivery || [];
+  const zonaObj = zonas.find(z => z.id === zonaDeliverySeleccionada);
+
+  if (zonaObj) {
+    costoDeliveryUSD = zonaObj.tarifa_base;
+    if (pesoTotalKg > zonaObj.peso_incluido_kg) {
+      const kgExtra = pesoTotalKg - zonaObj.peso_incluido_kg;
+      costoDeliveryUSD += kgExtra * (storeConfig.costo_por_kg_extra || 0.50);
+    }
+  }
+
+  // Renderizar selector de zonas dentro del modal del carrito (puedes ubicarlo en el HTML del carrito)
+  let deliveryBoxHTML = `
+    <div class="checkout-delivery-box">
+      <label><i class="fa-solid fa-motorcycle"></i> Selecciona tu zona de entrega:</label>
+      <select id="select-zona-delivery" onchange="cambiarZonaDelivery(this.value)">
+        <option value="">-- Elige una zona --</option>
+        ${zonas.map(z => `<option value="${z.id}" ${z.id === zonaDeliverySeleccionada ? 'selected' : ''}>${z.nombre} (Base: $${z.tarifa_base.toFixed(2)})</option>`).join('')}
+      </select>
+      <div class="delivery-summary-text">
+        Peso aprox. estimado: <b>${pesoTotalKg.toFixed(1)} kg</b> | Delivery: <b>$${costoDeliveryUSD.্যের ? costoDeliveryUSD.toFixed(2) : costoDeliveryUSD.toFixed(2)}</b>
+      </div>
+    </div>
+  `;
+  
+  // Insertar el bloque de delivery antes de los totales en el modal del carrito
+  const resumenContainer = document.getElementById("resumen-carrito-totales");
+  if (resumenContainer) {
+    resumenContainer.innerHTML = deliveryBoxHTML;
+  }
+
+  const totalGeneralUSD = totalProductosUSD + costoDeliveryUSD;
+  const totalBs = totalGeneralUSD * tasa;
+
+  document.getElementById("total-usd").textContent = `$${totalGeneralUSD.toFixed(2)}`;
   document.getElementById("total-bs").textContent = `${simAlt} ${totalBs.toFixed(2)}`;
+}
+
+function cambiarZonaDelivery(idZona) {
+  zonaDeliverySeleccionada = idZona;
+  renderizarCarrito();
 }
 
 // 9. Toast No Invasivo
@@ -338,20 +384,41 @@ function iniciarCheckout() {
   const simAlt = storeConfig.simbolo_moneda_alt || "Bs.";
   
   let mensaje = `*¡Hola Mamba Market! Deseo realizar el siguiente pedido:*\n\n`;
-  let totalUSD = 0;
+  let totalProductosUSD = 0;
+  let pesoTotalKg = 0;
 
   carrito.forEach((item, index) => {
     const subtotal = item.precio * item.cantidad;
-    totalUSD += subtotal;
+    totalProductosUSD += subtotal;
+    pesoTotalKg += item.unidad === "Kg" ? item.cantidad : (item.cantidad * 0.5);
     mensaje += `${index + 1}. *${item.nombre}* \n   Cantidad: ${item.cantidad} x $${item.precio.toFixed(2)} = *$${subtotal.toFixed(2)}*\n`;
   });
 
-  const totalBs = totalUSD * tasa;
+  // Calcular delivery para el mensaje
+  let costoDeliveryUSD = 0;
+  let nombreZonaTexto = "No especificada";
+  const zonas = storeConfig.zonas_delivery || [];
+  const zonaObj = zonas.find(z => z.id === zonaDeliverySeleccionada);
+
+  if (zonaObj) {
+    nombreZonaTexto = zonaObj.nombre;
+    costoDeliveryUSD = zonaObj.tarifa_base;
+    if (pesoTotalKg > zonaObj.peso_incluido_kg) {
+      costoDeliveryUSD += (pesoTotalKg - zonaObj.peso_incluido_kg) * (storeConfig.costo_por_kg_extra || 0.50);
+    }
+  }
+
+  const totalGeneralUSD = totalProductosUSD + costoDeliveryUSD;
+  const totalBs = totalGeneralUSD * tasa;
+
   mensaje += `\n--------------------------\n`;
-  mensaje += `*Total USD:* $${totalUSD.toFixed(2)}\n`;
-  mensaje += `*Total Bs (${simAlt}):* ${simAlt} ${totalBs.toFixed(2)} (Tasa: ${tasa})\n`;
+  mensaje += `*Subtotal Productos:* $${totalProductosUSD.toFixed(2)}\n`;
+  mensaje += `*Zona de Entrega:* ${nombreZonaTexto}\n`;
+  mensaje += `*Costo Delivery:* $${costoDeliveryUSD.toFixed(2)} (~${pesoTotalKg.toFixed(1)} kg)\n`;
   mensaje += `--------------------------\n`;
-  mensaje += `Quedo atento para coordinar el pago y la entrega. ¡Gracias!`;
+  mensaje += `*TOTAL A PAGAR:* $${totalGeneralUSD.toFixed(2)} (${simAlt} ${totalBs.toFixed(2)})\n`;
+  mensaje += `--------------------------\n`;
+  mensaje += `Quedo atento para coordinar el pago. ¡Gracias!`;
 
   const urlWhatsApp = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(mensaje)}`;
   window.open(urlWhatsApp, "_blank");
