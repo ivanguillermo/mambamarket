@@ -1,5 +1,6 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbxYr-CK3-uTvdKZz-GItmYnGbaLAAzrtWlCPu3Pr9-KE3UNQBKsTnRMpU4Dy_Sw_pRqQw/exec";
-const WHATSAPP_NUMERO = "584126216661"; // Reemplaza con tu número de WhatsApp de Mamba Market (código país + número)
+const WHATSAPP_NUMERO = "584126216661"; // Reemplaza con tu número de WhatsApp de Mamba Market (código país + número);
+const CSV_URL = "productos.csv"
 
 let storeConfig = {
   nombre_tienda: "Mamba Market",
@@ -19,38 +20,52 @@ document.addEventListener("DOMContentLoaded", () => {
   sincronizarConGoogleSheets();
 });
 
+
 // 1. Cargar datos iniciales desde el CSV local del servidor
-async function cargarProductosCSVLocal() {
+async function cargarProductosCSV() {
   try {
-    const res = await fetch("productos.csv");
-    const csvText = await res.text();
-    productosList = parsearCSV(csvText);
+    const response = await fetch(CSV_URL);
+    const dataText = await response.text();
+    productosList = parsearCSV(dataText);
     
-    // Ordenar por popularidad (ventas desc) y limitar a los primeros 20
+    // Ordenar por popularidad (ventas desc)
     productosList.sort((a, b) => Number(b.ventas || 0) - Number(a.ventas || 0));
-    
     procesarCargaTienda();
   } catch (error) {
-    console.log("No se pudo cargar productos.csv local, esperando red.");
+    console.error("Error al cargar el archivo CSV local:", error);
   }
 }
 
-function parsearCSV(texto) {
-  const lineas = texto.trim().split("\n");
-  const headers = lineas[0].split(",").map(h => h.trim());
-  const resultados = [];
+function parsearCSV(text) {
+  const lines = text.split("\n").filter(line => line.trim() !== "");
+  if (lines.length === 0) return [];
 
-  for (let i = 1; i < lineas.length; i++) {
-    const fila = lineas[i].split(",");
-    if (fila.length < headers.length) continue;
-    
+  // Extraer las cabeceras de la primera línea
+  const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""));
+  const result = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const currentLine = lines[i].split(",");
+    if (currentLine.length < headers.length) continue;
+
     const obj = {};
-    headers.forEach((h, index) => {
-      obj[h] = fila[index] ? fila[index].trim() : "";
-    });
-    resultados.push(obj);
+    for (let j = 0; j < headers.length; j++) {
+      let val = currentLine[j] ? currentLine.join(",").trim() : ""; // Manejo básico por si hay comas
+      // Limpieza de comillas dobles si las hubiera
+      val = currentLine[j] ? currentLine[j].trim().replace(/^"|"$/g, "") : "";
+      
+      // Convertir campos numéricos y booleanos clave
+      if (["costo_usd", "precio_usd", "stock", "liked", "shared", "ventas"].includes(headers[j])) {
+        obj[headers[j]] = Number(val) || 0;
+      } else if (["destacado", "activo"].includes(headers[j])) {
+        obj[headers[j]] = val.toUpperCase() === "TRUE";
+      } else {
+        obj[headers[j]] = val;
+      }
+    }
+    result.push(obj);
   }
-  return resultados;
+  return result;
 }
 
 function procesarCargaTienda() {
