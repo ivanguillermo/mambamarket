@@ -375,6 +375,7 @@ function toggleCarrito() {
   }
 }
 
+// Reemplaza o ajusta esta parte dentro de renderizarCarrito() donde manejabas las zonas
 function renderizarCarrito() {
   const container = document.getElementById("items-carrito");
   if (!container) return;
@@ -400,8 +401,7 @@ function renderizarCarrito() {
   carrito.forEach(item => {
     const subtotalUSD = item.precio * item.cantidad;
     totalProductosUSD += subtotalUSD;
-    
-    const factorPeso = item.unidad === "Kg" ? 1 : 0.5;
+    const factorPeso = (item.unidad === "Kg" || item.unidad === "K") ? 1 : 0.5;
     pesoTotalKg += (item.cantidad * factorPeso);
 
     const row = document.createElement("div");
@@ -425,33 +425,38 @@ function renderizarCarrito() {
 
   let costoDeliveryUSD = 0;
   const zonas = storeConfig.zonas_delivery || [];
-  const zonaObj = zonas.find(z => z.id === zonaDeliverySeleccionada);
-
-  if (zonaObj) {
-    costoDeliveryUSD = zonaObj.tarifa_base;
-    if (pesoTotalKg > zonaObj.peso_incluido_kg) {
-      const kgExtra = pesoTotalKg - zonaObj.peso_incluido_kg;
-      costoDeliveryUSD += kgExtra * (storeConfig.costo_por_kg_extra || 0.50);
+  
+  // Si es delivery, calculamos el costo
+  if (tipoEntregaSeleccionada === "delivery") {
+    const zonaObj = zonas.find(z => z.id === zonaDeliverySeleccionada);
+    if (zonaObj) {
+      costoDeliveryUSD = zonaObj.tarifa_base;
+      if (pesoTotalKg > zonaObj.peso_incluido_kg) {
+        const kgExtra = pesoTotalKg - zonaObj.peso_incluido_kg;
+        costoDeliveryUSD += kgExtra * (storeConfig.costo_por_kg_extra || 0.50);
+      }
     }
   }
 
-  let deliveryBoxHTML = `
-    <div class="checkout-delivery-box">
-      <label><i class="fa-solid fa-motorcycle"></i> Selecciona tu zona de entrega:</label>
-      <select id="select-zona-delivery" onchange="cambiarZonaDelivery(this.value)">
-        <option value="">-- Elige una zona --</option>
-        ${zonas.map(z => `<option value="${z.id}" ${z.id === zonaDeliverySeleccionada ? 'selected' : ''}>${z.nombre} (Base: $${z.tarifa_base.toFixed(2)})</option>`).join('')}
-      </select>
-      <div class="delivery-summary-text">
-        Peso aprox. estimado: <b>${pesoTotalKg.toFixed(1)} kg</b> | Delivery: <b>$${costoDeliveryUSD.toFixed(2)}</b>
-      </div>
-    </div>
-  `;
-  
-  const resumenContainer = document.getElementById("resumen-carrito-totales");
-  if (resumenContainer) {
-    resumenContainer.innerHTML = deliveryBoxHTML;
-  }
+  // Rellenar las opciones del select de zonas de delivery de forma dinámica
+  setTimeout(() => {
+    const selectZona = document.getElementById("select-zona-delivery");
+    if (selectZona && selectZona.options.length <= 1) {
+      selectZona.innerHTML = `<option value="">-- Elige una zona --</option>` + 
+        zonas.map(z => `<option value="${z.id}" ${z.id === zonaDeliverySeleccionada ? 'selected' : ''}>${z.nombre} (Base: $${z.tarifa_base.toFixed(2)})</option>`).join('');
+    }
+
+    // Mostrar u ocultar campos según Pickup o Delivery
+    const wrapperZona = document.getElementById("contenedor-zona-wrapper");
+    const wrapperDir = document.getElementById("contenedor-direccion");
+    if (tipoEntregaSeleccionada === "pickup") {
+      if (wrapperZona) wrapperZona.style.display = "none";
+      if (wrapperDir) wrapperDir.style.display = "none";
+    } else {
+      if (wrapperZona) wrapperZona.style.display = "block";
+      if (wrapperDir) wrapperDir.style.display = "block";
+    }
+  }, 50);
 
   const totalGeneralUSD = totalProductosUSD + costoDeliveryUSD;
   const totalBs = totalGeneralUSD * tasa;
@@ -460,9 +465,25 @@ function renderizarCarrito() {
   document.getElementById("total-bs").textContent = `${simAlt} ${totalBs.toFixed(2)}`;
 }
 
+function cambiarTipoEntrega(tipo) {
+  tipoEntregaSeleccionada = tipo;
+  if (tipo === "pickup") {
+    zonaDeliverySeleccionada = ""; // Se limpia el delivery si retira en tienda
+  }
+  renderizarCarrito();
+}
+
 function cambiarZonaDelivery(idZona) {
   zonaDeliverySeleccionada = idZona;
   renderizarCarrito();
+}
+
+function guardarDatosCheckout() {
+  const inputDir = document.getElementById("input-direccion-cliente");
+  if (inputDir) direccionCliente = inputDir.value;
+  
+  const selectPago = document.getElementById("select-metodo-pago");
+  if (selectPago) metodoPagoSeleccionado = selectPago.value;
 }
 
 // Toast No Invasivo
@@ -486,6 +507,8 @@ function iniciarCheckout() {
     return;
   }
 
+  guardarDatosCheckout(); // Asegurar capturar inputs actuales
+
   const tasa = Number(storeConfig.tasa_cambio) || 1;
   const simAlt = storeConfig.simbolo_moneda_alt || "Bs.";
   
@@ -496,20 +519,22 @@ function iniciarCheckout() {
   carrito.forEach((item, index) => {
     const subtotal = item.precio * item.cantidad;
     totalProductosUSD += subtotal;
-    pesoTotalKg += item.unidad === "Kg" ? item.cantidad : (item.cantidad * 0.5);
+    pesoTotalKg += (item.unidad === "Kg" || item.unidad === "K") ? item.cantidad : (item.cantidad * 0.5);
     mensaje += `${index + 1}. *${item.nombre}* \n   Cantidad: ${item.cantidad} x $${item.precio.toFixed(2)} = *$${subtotal.toFixed(2)}*\n`;
   });
 
   let costoDeliveryUSD = 0;
-  let nombreZonaTexto = "No especificada";
+  let nombreZonaTexto = "N/A";
   const zonas = storeConfig.zonas_delivery || [];
-  const zonaObj = zonas.find(z => z.id === zonaDeliverySeleccionada);
 
-  if (zonaObj) {
-    nombreZonaTexto = zonaObj.nombre;
-    costoDeliveryUSD = zonaObj.tarifa_base;
-    if (pesoTotalKg > zonaObj.peso_incluido_kg) {
-      costoDeliveryUSD += (pesoTotalKg - zonaObj.peso_incluido_kg) * (storeConfig.costo_por_kg_extra || 0.50);
+  if (tipoEntregaSeleccionada === "delivery") {
+    const zonaObj = zonas.find(z => z.id === zonaDeliverySeleccionada);
+    if (zonaObj) {
+      nombreZonaTexto = zonaObj.nombre;
+      costoDeliveryUSD = zonaObj.tarifa_base;
+      if (pesoTotalKg > zonaObj.peso_incluido_kg) {
+        costoDeliveryUSD += (pesoTotalKg - zonaObj.peso_incluido_kg) * (storeConfig.costo_por_kg_extra || 0.50);
+      }
     }
   }
 
@@ -518,8 +543,15 @@ function iniciarCheckout() {
 
   mensaje += `\n--------------------------\n`;
   mensaje += `*Subtotal Productos:* $${totalProductosUSD.toFixed(2)}\n`;
-  mensaje += `*Zona de Entrega:* ${nombreZonaTexto}\n`;
-  mensaje += `*Costo Delivery:* $${costoDeliveryUSD.toFixed(2)} (~${pesoTotalKg.toFixed(1)} kg)\n`;
+  mensaje += `*Modalidad:* ${tipoEntregaSeleccionada === 'delivery' ? 'Delivery a domicilio' : 'Retiro en Tienda (Pickup)'}\n`;
+  
+  if (tipoEntregaSeleccionada === 'delivery') {
+    mensaje += `*Zona:* ${nombreZonaTexto}\n`;
+    mensaje += `*Dirección:* ${direccionCliente || 'No especificada'}\n`;
+    mensaje += `*Costo Delivery:* $${costoDeliveryUSD.toFixed(2)} (~${pesoTotalKg.toFixed(1)} kg)\n`;
+  }
+
+  mensaje += `*Método de Pago:* ${metodoPagoSeleccionado}\n`;
   mensaje += `--------------------------\n`;
   mensaje += `*TOTAL A PAGAR:* $${totalGeneralUSD.toFixed(2)} (${simAlt} ${totalBs.toFixed(2)})\n`;
   mensaje += `--------------------------\n`;
