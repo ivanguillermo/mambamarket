@@ -118,6 +118,41 @@
             <strong id="total-bs">Bs. 0.00</strong>
           </div>
         </div>
+        <!-- Agrega esto dentro del cart-footer o antes de los botones de pago en index.html -->
+        <div class="checkout-delivery-box">
+          <!-- Tipo de Entrega -->
+          <label><i class="fa-solid fa-store"></i> Tipo de Entrega:</label>
+          <select id="select-tipo-entrega" onchange="cambiarTipoEntrega(this.value)">
+            <option value="delivery">Delivery a domicilio</option>
+            <option value="pickup">Retiro en Tienda (Pickup)</option>
+          </select>
+        
+          <!-- Contenedor dinámico de zonas (solo si es delivery) -->
+          <div id="contenedor-zona-wrapper" style="margin-top: 10px;">
+            <label><i class="fa-solid fa-motorcycle"></i> Zona de Entrega:</label>
+            <select id="select-zona-delivery" onchange="cambiarZonaDelivery(this.value)">
+              <option value="">-- Elige una zona --</option>
+              <!-- Se llena dinámicamente desde JS -->
+            </select>
+          </div>
+        
+          <!-- Dirección exacta (siempre útil) -->
+          <div style="margin-top: 10px;" id="contenedor-direccion">
+            <label><i class="fa-solid fa-location-dot"></i> Dirección o Punto de Referencia:</label>
+            <input type="text" id="input-direccion-cliente" placeholder="Ej: Calle principal, casa #12..." style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem;" oninput="guardarDatosCheckout()">
+          </div>
+        
+          <!-- Método de Pago -->
+          <div style="margin-top: 10px;">
+            <label><i class="fa-solid fa-money-bill-wave"></i> Método de Pago:</label>
+            <select id="select-metodo-pago" onchange="guardarDatosCheckout()">
+              <option value="Pago Móvil (Bs.)">Pago Móvil (Bs.)</option>
+              <option value="Efectivo USD">Efectivo USD ($)</option>
+              <option value="Zelle">Zelle</option>
+              <option value="Binance Pay">Binance Pay (USDT)</option>
+            </select>
+          </div>
+        </div>
         <button id="btn-checkout" class="btn-primary" onclick="iniciarCheckout()">Continuar Pedido</button>
       </div>
     </div>
