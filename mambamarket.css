@@ -561,3 +561,92 @@ body {
     border-radius: 8px;
   }
 }
+/* Estilos del Banner Hero y Ubicación */
+.store-hero {
+  background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%);
+  color: white;
+  padding: 24px 16px;
+  border-radius: 12px;
+  margin: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.hero-banner-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+@media (min-width: 768px) {
+  .hero-banner-content {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+}
+.hero-text h2 {
+  font-size: 1.5rem;
+  margin-bottom: 8px;
+}
+.hero-badge {
+  background: rgba(255,255,255,0.2);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: inline-block;
+  margin-bottom: 8px;
+}
+.hero-image-container {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+.hero-img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  display: block;
+}
+.store-tag-location {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: 0.75rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+/* Sección de Selección de Delivery en el Carrito */
+.checkout-delivery-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 12px;
+  border-radius: 8px;
+  margin: 12px 0;
+}
+.checkout-delivery-box label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #334155;
+  display: block;
+  margin-bottom: 6px;
+}
+.checkout-delivery-box select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 0.9rem;
+}
+.delivery-summary-text {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-top: 6px;
+}
