@@ -212,6 +212,7 @@ function seleccionarCategoria(cat) {
 }
 
 // Renderizar Productos
+// 5. Renderizar Productos (Con etiquetas de Stock Agotado y Productos Populares)
 function renderizarProductos(lista) {
   const grid = document.getElementById("grid-productos");
   if (!grid) return;
@@ -228,6 +229,9 @@ function renderizarProductos(lista) {
   lista.forEach(prod => {
     const precioUSD = Number(prod.precio_usd);
     const precioBs = precioUSD * tasa;
+    const stockActual = Number(prod.stock !== undefined ? prod.stock : 99); // Por defecto stock libre si no se especifica
+    const ventasCount = Number(prod.ventas || 0);
+    const estaAgotado = stockActual <= 0;
 
     const textoPrecioPrincipal = modoMonedaBs 
       ? `${simAlt} ${precioBs.toFixed(2)}` 
@@ -237,10 +241,19 @@ function renderizarProductos(lista) {
       ? `($${precioUSD.toFixed(2)}) / ${prod.unidad_medida || 'Unidad'}` 
       : `(${simAlt} ${precioBs.toFixed(2)}) / ${prod.unidad_medida || 'Unidad'}`;
 
+    // Insignias dinámicas (Popular / Agotado)
+    let badgeHTML = "";
+    if (estaAgotado) {
+      badgeHTML = `<span class="product-badge badge-agotado">Agotado</span>`;
+    } else if (ventasCount >= 10) { // Umbral de ejemplo para considerar un producto popular
+      badgeHTML = `<span class="product-badge badge-popular"><i class="fa-solid fa-fire"><b> Más Vendido</b></i></span>`;
+    }
+
     const card = document.createElement("div");
-    card.className = "product-card";
+    card.className = `product-card ${estaAgotado ? 'card-agotado' : ''}`;
     card.innerHTML = `
-      <div>
+      <div style="position: relative;">
+        ${badgeHTML}
         <img class="product-img" src="${prod.imagen_url || 'https://via.placeholder.com/220x170.png?text=Mamba+Market'}" alt="${prod.nombre}" loading="lazy">
         <span class="product-brand">${prod.marca || ''}</span>
         <h4 class="product-title">${prod.nombre}</h4>
@@ -248,9 +261,10 @@ function renderizarProductos(lista) {
       <div>
         <div class="product-price-main">${textoPrecioPrincipal}</div>
         <div class="product-price-sub">${textoPrecioSecundario}</div>
-        <button class="btn-add" onclick="agregarAlCarrito('${prod.id_producto}')">
-          <i class="fa-solid fa-plus"></i> Agregar
-        </button>
+        ${estaAgotado 
+          ? `<button class="btn-add btn-disabled" disabled>No disponible</button>` 
+          : `<button class="btn-add" onclick="agregarAlCarrito('${prod.id_producto}')"><i class="fa-solid fa-plus"></i> Agregar</button>`
+        }
       </div>
     `;
     grid.appendChild(card);
