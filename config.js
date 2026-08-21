@@ -1,5 +1,5 @@
 // config.js - Configuración general de la tienda
-let storeConfig = typeof STORE_CONFIG !== 'undefined' ? STORE_CONFIG : {
+window.STORE_CONFIG= {
   nombre_tienda: "Mamba Market",
   tasa_cambio: 755,
   simbolo_moneda_alt: "Bs.",
@@ -15,5 +15,7 @@ let storeConfig = typeof STORE_CONFIG !== 'undefined' ? STORE_CONFIG : {
   ],
   costo_por_kg_extra: 0.50 // Si supera el peso base, se cobra adicional por kilo
 };
+
+
 
  
