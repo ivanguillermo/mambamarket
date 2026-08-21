@@ -1,12 +1,17 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbxYr-CK3-uTvdKZz-GItmYnGbaLAAzrtWlCPu3Pr9-KE3UNQBKsTnRMpU4Dy_Sw_pRqQw/exec";
-const WHATSAPP_NUMERO = "584126216661"; // Reemplaza con tu número de WhatsApp de Mamba Market (código país + número);
-const CSV_URL = "productos.csv"
+// mambamarket.js - Lógica principal híbrida (CSV local + Sincronización Google Sheets)
 
-let storeConfig = {
+const API_URL = "https://script.google.com/macros/s/AKfycbxYr-CK3-uTvdKZz-GItmYnGbaLAAzrtWlCPu3Pr9-KE3UNQBKsTnRMpU4Dy_Sw_pRqQw/exec";
+const WHATSAPP_NUMERO = "584126216661"; // Reemplaza con tu número de WhatsApp de Mamba Market
+const CSV_URL = "productos.csv";
+
+// Inicializar storeConfig usando STORE_CONFIG de config.js si está disponible
+let storeConfig = typeof STORE_CONFIG !== 'undefined' ? STORE_CONFIG : {
   nombre_tienda: "Mamba Market",
   tasa_cambio: 755,
-  simbolo_moneda_alt: "Bs."
+  simbolo_moneda_alt: "Bs.",
+  zonas_delivery: []
 };
+
 let productosList = [];
 let carrito = JSON.parse(localStorage.getItem("mamba_carrito")) || [];
 let categoriaActiva = "TODOS";
@@ -16,13 +21,17 @@ let zonaDeliverySeleccionada = "";
 
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("year").textContent = new Date().getFullYear();
+  
+  // 1. Carga inmediata local (Offline-first / CSV + config.js)
+  aplicarConfiguracion();
   cargarProductosCSVLocal();
+
+  // 2. Sincronización en segundo plano con Google Sheets
   sincronizarConGoogleSheets();
 });
 
-
-// 1. Cargar datos iniciales desde el CSV local del servidor
-async function cargarProductosCSV() {
+// 1. Cargar datos iniciales desde el CSV local
+async function cargarProductosCSVLocal() {
   try {
     const response = await fetch(CSV_URL);
     const dataText = await response.text();
@@ -33,6 +42,8 @@ async function cargarProductosCSV() {
     procesarCargaTienda();
   } catch (error) {
     console.error("Error al cargar el archivo CSV local:", error);
+    const loadingEl = document.getElementById("loading");
+    if (loadingEl) loadingEl.textContent = "Error al cargar los productos locales.";
   }
 }
 
@@ -40,7 +51,6 @@ function parsearCSV(text) {
   const lines = text.split("\n").filter(line => line.trim() !== "");
   if (lines.length === 0) return [];
 
-  // Extraer las cabeceras de la primera línea
   const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""));
   const result = [];
 
@@ -50,11 +60,8 @@ function parsearCSV(text) {
 
     const obj = {};
     for (let j = 0; j < headers.length; j++) {
-      let val = currentLine[j] ? currentLine.join(",").trim() : ""; // Manejo básico por si hay comas
-      // Limpieza de comillas dobles si las hubiera
-      val = currentLine[j] ? currentLine[j].trim().replace(/^"|"$/g, "") : "";
+      let val = currentLine[j] ? currentLine[j].trim().replace(/^"|"$/g, "") : "";
       
-      // Convertir campos numéricos y booleanos clave
       if (["costo_usd", "precio_usd", "stock", "liked", "shared", "ventas"].includes(headers[j])) {
         obj[headers[j]] = Number(val) || 0;
       } else if (["destacado", "activo"].includes(headers[j])) {
@@ -71,7 +78,6 @@ function parsearCSV(text) {
 function procesarCargaTienda() {
   aplicarConfiguracion();
   renderizarCategorias();
-  // Mostrar estrictamente los primeros 20 productos ordenados por popularidad en la carga inicial
   renderizarProductos(productosList.slice(0, 20));
   actualizarContadorCarrito();
 }
@@ -81,16 +87,20 @@ async function sincronizarConGoogleSheets() {
   try {
     const res = await fetch(API_URL);
     const data = await res.json();
+    
     if (data.status === "success") {
-      storeConfig = { ...storeConfig, ...data.configuracion };
+      if (data.configuracion) {
+        storeConfig = { ...storeConfig, ...data.configuracion };
+      }
       if (data.productos && data.productos.length > 0) {
         productosList = data.productos;
         productosList.sort((a, b) => Number(b.ventas || 0) - Number(a.ventas || 0));
       }
       procesarCargaTienda();
+      console.log("Tienda sincronizada con Google Sheets exitosamente.");
     }
   } catch (error) {
-    console.log("Modo offline: usando datos locales.");
+    console.log("Modo offline: usando datos locales del CSV.");
   }
 }
 
@@ -98,25 +108,34 @@ async function sincronizarConGoogleSheets() {
 function aplicarConfiguracion() {
   const nombre = storeConfig.nombre_tienda || "Mamba Market";
   document.title = `${nombre} | Supermercado Online`;
-  document.getElementById("nombre-tienda").textContent = nombre;
-  document.getElementById("footer-nombre").textContent = nombre;
-  document.getElementById("mensaje-bienvenida").textContent = storeConfig.mensaje_bienvenida || `¡Bienvenidos a ${nombre}!`;
+  
+  const elNombreTienda = document.getElementById("nombre-tienda");
+  if (elNombreTienda) elNombreTienda.textContent = nombre;
+  
+  const elFooterNombre = document.getElementById("footer-nombre");
+  if (elFooterNombre) elFooterNombre.textContent = nombre;
+  
+  const elBienvenida = document.getElementById("mensaje-bienvenida");
+  if (elBienvenida) elBienvenida.textContent = storeConfig.mensaje_bienvenida || `¡Bienvenidos a ${nombre}!`;
   
   const tasa = Number(storeConfig.tasa_cambio) || 1;
   const simAlt = storeConfig.simbolo_moneda_alt || "Bs.";
-  document.getElementById("tasa-valor").textContent = `1 USD = ${simAlt} ${tasa.toFixed(2)}`;
+  const elTasaValor = document.getElementById("tasa-valor");
+  if (elTasaValor) elTasaValor.textContent = `1 USD = ${simAlt} ${tasa.toFixed(2)}`;
 
-  if (storeConfig.horarios_entrega) {
-    document.getElementById("horario-atencion").textContent = `Horarios de Entrega: ${storeConfig.horarios_entrega}`;
+  const elHorario = document.getElementById("horario-atencion");
+  if (elHorario && storeConfig.horarios_entrega) {
+    elHorario.textContent = `Horarios de Entrega: ${storeConfig.horarios_entrega}`;
   }
 
   if (storeConfig.url_logo) {
     const logoImg = document.getElementById("logo-tienda");
-    logoImg.src = storeConfig.url_logo;
-    logoImg.classList.remove("hidden");
-
+    if (logoImg) {
+      logoImg.src = storeConfig.url_logo;
+      logoImg.classList.remove("hidden");
+    }
     const favicon = document.getElementById("dynamic-favicon");
-    favicon.href = storeConfig.url_logo;
+    if (favicon) favicon.href = storeConfig.url_logo;
   }
 
   const loadingEl = document.getElementById("loading");
@@ -294,6 +313,8 @@ function renderizarCarrito() {
     </div>`;
     document.getElementById("total-usd").textContent = "$0.00";
     document.getElementById("total-bs").textContent = "Bs. 0.00";
+    const resumenContainer = document.getElementById("resumen-carrito-totales");
+    if (resumenContainer) resumenContainer.innerHTML = "";
     return;
   }
 
@@ -306,7 +327,6 @@ function renderizarCarrito() {
     const subtotalUSD = item.precio * item.cantidad;
     totalProductosUSD += subtotalUSD;
     
-    // Estimación de peso: si la unidad es Kg se multiplica exacto, sino estimamos 0.5kg por unidad genérica
     const factorPeso = item.unidad === "Kg" ? 1 : 0.5;
     pesoTotalKg += (item.cantidad * factorPeso);
 
@@ -329,7 +349,6 @@ function renderizarCarrito() {
     container.appendChild(row);
   });
 
-  // Cálculo de Delivery basado en zona y peso aproximado
   let costoDeliveryUSD = 0;
   const zonas = storeConfig.zonas_delivery || [];
   const zonaObj = zonas.find(z => z.id === zonaDeliverySeleccionada);
@@ -342,7 +361,6 @@ function renderizarCarrito() {
     }
   }
 
-  // Renderizar selector de zonas dentro del modal del carrito (puedes ubicarlo en el HTML del carrito)
   let deliveryBoxHTML = `
     <div class="checkout-delivery-box">
       <label><i class="fa-solid fa-motorcycle"></i> Selecciona tu zona de entrega:</label>
@@ -351,12 +369,11 @@ function renderizarCarrito() {
         ${zonas.map(z => `<option value="${z.id}" ${z.id === zonaDeliverySeleccionada ? 'selected' : ''}>${z.nombre} (Base: $${z.tarifa_base.toFixed(2)})</option>`).join('')}
       </select>
       <div class="delivery-summary-text">
-        Peso aprox. estimado: <b>${pesoTotalKg.toFixed(1)} kg</b> | Delivery: <b>$${costoDeliveryUSD.্যের ? costoDeliveryUSD.toFixed(2) : costoDeliveryUSD.toFixed(2)}</b>
+        Peso aprox. estimado: <b>${pesoTotalKg.toFixed(1)} kg</b> | Delivery: <b>$${costoDeliveryUSD.toFixed(2)}</b>
       </div>
     </div>
   `;
   
-  // Insertar el bloque de delivery antes de los totales en el modal del carrito
   const resumenContainer = document.getElementById("resumen-carrito-totales");
   if (resumenContainer) {
     resumenContainer.innerHTML = deliveryBoxHTML;
@@ -409,7 +426,6 @@ function iniciarCheckout() {
     mensaje += `${index + 1}. *${item.nombre}* \n   Cantidad: ${item.cantidad} x $${item.precio.toFixed(2)} = *$${subtotal.toFixed(2)}*\n`;
   });
 
-  // Calcular delivery para el mensaje
   let costoDeliveryUSD = 0;
   let nombreZonaTexto = "No especificada";
   const zonas = storeConfig.zonas_delivery || [];
