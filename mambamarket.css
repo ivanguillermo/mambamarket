@@ -650,3 +650,42 @@ body {
   color: #64748b;
   margin-top: 6px;
 }
+
+/* Insignias de productos y control de stock */
+.product-card {
+  position: relative;
+}
+
+.card-agotado {
+  opacity: 0.65;
+  background-color: #f8fafc;
+}
+
+.product-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 4px;
+  z-index: 2;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.badge-agotado {
+  background-color: #dc2626;
+  color: #ffffff;
+}
+
+.badge-popular {
+  background-color: #f59e0b;
+  color: #ffffff;
+}
+
+.btn-disabled {
+  background-color: #cbd5e1 !important;
+  color: #64748b !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+}
