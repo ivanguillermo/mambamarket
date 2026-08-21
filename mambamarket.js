@@ -27,7 +27,23 @@ let metodoPagoSeleccionado = "Pago Móvil (Bs.)";
 const CACHE_KEY_PRODS = "mamba_cache_productos";
 const CACHE_KEY_CONFIG = "mamba_cache_config";
 const CACHE_KEY_TIME = "mamba_cache_tiempo";
-const CACHE_EXPIRACION_MS = 30 * 60 * 1000; 
+const CACHE_EXPIRACION_MS = 30 * 60 * 1000;
+
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('btn-instalar').style.display = 'block';
+});
+
+document.getElementById('btn-instalar').addEventListener('click', async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') deferredPrompt = null;
+    document.getElementById('btn-instalar').style.display = 'none';
+  }
+});
 
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("year").textContent = new Date().getFullYear();
