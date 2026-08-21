@@ -19,6 +19,10 @@ let modoMonedaBs = false;
 let toastTimeout;
 let zonaDeliverySeleccionada = "";
 
+let tipoEntregaSeleccionada = "delivery"; // "delivery" o "pickup"
+let direccionCliente = "";
+let metodoPagoSeleccionado = "Pago Móvil (Bs.)";
+
 // Claves para el caché local (expira cada 30 minutos)
 const CACHE_KEY_PRODS = "mamba_cache_productos";
 const CACHE_KEY_CONFIG = "mamba_cache_config";
