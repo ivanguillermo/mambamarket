@@ -1,0 +1,22 @@
+{
+  "name": "Mamba Market",
+  "short_name": "MambaMarket",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f4f6f8",
+  "theme_color": "#1b5e20",
+  "orientation": "portrait",
+  "description": "Tu bodega y supermercado online en Yaracuy",
+  "icons": [
+    {
+      "src": "https://ivanguillermo.github.io/mambamarket/assets/mamba_logo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "https://ivanguillermo.github.io/mambamarket/assets/mamba_logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}
