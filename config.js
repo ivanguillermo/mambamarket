@@ -1,14 +1,16 @@
-const CONFIG_LOCAL = {
-  configuracion: {
-    nombre_tienda: "Mamba Market",
-    mensaje_bienvenida: "¡Bienvenidos a Mamba Market! Tu bodega y supermercado online.",
-    horarios_entrega: "Lunes a Sábado de 8:00 AM a 7:00 PM",
-    tasa_cambio: 755, // Tasa base inicial ajustable
-    simbolo_moneda_alt: "Bs.",
-    url_logo: "https://ivanguillermo.github.io/mambamarket/assets/mamba_logo.jpg",
-    color_primario: "#1b5e20",
-    color_fondo: "#f4f6f8",
-    color_tarjeta: "#ffffff",
-    color_texto: "#1a1a1a"
-  }  
+// config.js - Configuración general de la tienda
+const STORE_CONFIG = {
+  nombre_tienda: "Mamba Market",
+  tasa_cambio: 755,
+  simbolo_moneda_alt: "Bs.",
+  mensaje_bienvenida: "¡Bienvenidos a Mamba Market! Tu bodega y supermercado online.",
+  horarios_entrega: "Lunes a Sábado: 8:00 AM - 7:00 PM",
+  url_logo: "https://ivanguillermo.github.io/mambamarket/assets/mamba_logo.jpg",
+  // Configuración de Zonas de Delivery (Zonas en Yaracuy / San Felipe como ejemplo)
+  zonas_delivery: [
+    { id: "centro", nombre: "San Felipe Centro", tarifa_base: 1.00, peso_incluido_kg: 3 },
+    { id: "norte", nombre: "Sector Norte / Cují", tarifa_base: 1.50, peso_incluido_kg: 3 },
+    { id: "periferia", nombre: "Zonas Aledañas / Afueras", tarifa_base: 2.50, peso_incluido_kg: 2 }
+  ],
+  costo_por_kg_extra: 0.50 // Si supera el peso base, se cobra adicional por kilo
 };
