@@ -274,7 +274,7 @@ function renderizarProductos(lista) {
     card.innerHTML = `
       <div style="position: relative;">
         ${badgeHTML}
-        <img class="product-img" src="${prod.imagen_url}" alt="${prod.nombre}" loading="lazy">
+        <img class="product-img" src="${prod.imagen_url || 'https://ivanguillermo.github.io/mambamarket/assets/mamba_logo.jpg'  }" alt="${prod.nombre}" loading="lazy">
         <span class="product-brand">${prod.marca || ''}</span>
         <h4 class="product-title">${prod.nombre}</h4>
       </div>
