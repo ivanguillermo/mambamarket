@@ -325,7 +325,7 @@ function agregarAlCarrito(id) {
   if (!prod) return;
 
   // Asegurar que el precio sea un número válido sin importar si viene con coma o punto
-  let precioLimpio = prod.precio_usd;
+  let precioLimpio = Number(String(prod.precio_usd).replace(',', '.')) || 0;
   if (typeof precioLimpio === 'string') {
     precioLimpio = Number(precioLimpio.replace(',', '.'));
   }
