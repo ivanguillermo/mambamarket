@@ -1,7 +1,6 @@
 // config.js - Configuración general de la tienda
 window.STORE_CONFIG= {
   nombre_tienda: "Mamba Market",
-  tasa_cambio: 755,
   simbolo_moneda_alt: "Bs.",
   zonas_delivery: [],
   mensaje_bienvenida: "¡Bienvenidos a Mamba Market! Tu bodega y supermercado online.",
