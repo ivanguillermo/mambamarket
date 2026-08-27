@@ -3,10 +3,10 @@ importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-comp
 
 // Configuración que obtienes desde tu consola de Firebase
 firebase.initializeApp({
-  apiKey: "TU_API_KEY",
-  projectId: "TU_PROJECT_ID",
-  messagingSenderId: "TU_SENDER_ID",
-  appId: "TU_APP_ID"
+  apiKey: "AIzaSyAhMfCEyJJRcmdA1iBCF0i5q_YSGAzBWQQ",
+  projectId: "mambamarket-ae17f",
+  messagingSenderId: "791480746277",
+  appId: "1:791480746277:web:c805c816f103745c81dacc"
 });
 
 const messaging = firebase.messaging();
