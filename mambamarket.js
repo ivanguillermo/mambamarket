@@ -617,3 +617,14 @@ function registrarTokenFirebase() {
       console.log('Error al obtener token:', err);
     });
 }
+
+// Exponer explícitamente las funciones al ámbito global para los eventos inline del HTML
+window.seleccionarCategoria = seleccionarCategoria;
+window.agregarAlCarrito = agregarAlCarrito;
+window.modificarCantidad = modificarCantidad;
+window.eliminarDelCarrito = eliminarDelCarrito;
+window.toggleMoneda = toggleMoneda;
+window.toggleCarrito = toggleCarrito;
+window.cambiarTipoEntrega = cambiarTipoEntrega;
+window.cambiarZonaDelivery = cambiarZonaDelivery;
+window.iniciarCheckout = iniciarCheckout;
