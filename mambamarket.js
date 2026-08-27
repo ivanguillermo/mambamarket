@@ -13,7 +13,14 @@ let storeConfig = window.STORE_CONFIG || {
 };
 
 let productosList = [];
-let carrito = JSON.parse(localStorage.getItem("mamba_carrito")) || [];
+let carrito = [];
+try {
+    carrito = JSON.parse(localStorage.getItem("mamba_carrito")) || [];
+} catch (e) {
+    console.warn("El carrito guardado estaba corrupto, se reinició.", e);
+    localStorage.removeItem("mamba_carrito");
+    carrito = [];
+}
 let categoriaActiva = "TODOS";
 let modoMonedaBs = false;
 let toastTimeout;
