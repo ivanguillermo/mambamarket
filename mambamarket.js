@@ -7,7 +7,6 @@ const CSV_URL = "productos.csv";
 // Configuración inicial segura
 let storeConfig = window.STORE_CONFIG || {
   nombre_tienda: "Mamba Market",
-  tasa_cambio: 755,
   simbolo_moneda_alt: "Bs.",
   zonas_delivery: []
 };
