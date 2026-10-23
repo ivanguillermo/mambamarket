@@ -20,7 +20,41 @@ try {
     localStorage.removeItem("mamba_carrito");
     carrito = [];
 }
+const PRODUCTOS_POR_PAGINA = 20;
+const IMG_POR_DEFECTO = "https://ivanguillermo.github.io/mambamarket/assets/mamba_logo.jpg";
+
+// ---------- Utilidades ----------
+function escapeHTML(valor) {
+  return String(valor === undefined || valor === null ? "" : valor).replace(/[&<>"']/g, c => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+  ));
+}
+
+// Acepta 1.5, "1.5" y "1,5"
+function parsePrecio(valor) {
+  return Number(String(valor === undefined || valor === null ? "" : valor).replace(",", ".")) || 0;
+}
+
+// Vacío / sin columna = activo. Solo FALSE, NO o 0 lo ocultan.
+function esActivo(prod) {
+  const v = prod.activo;
+  if (v === undefined || v === null || v === "") return true;
+  if (typeof v === "boolean") return v;
+  return !["FALSE", "NO", "0"].includes(String(v).trim().toUpperCase());
+}
+
+// Filtra inactivos / sin id y ordena por ventas (de mayor a menor)
+function prepararProductos(lista) {
+  return (Array.isArray(lista) ? lista : [])
+    .filter(p => p && p.id_producto !== undefined && p.id_producto !== "" && esActivo(p))
+    .sort((a, b) => Number(b.ventas || 0) - Number(a.ventas || 0));
+}
+
+// El id siempre se maneja como texto (Sheets puede devolverlo como número)
+carrito = Array.isArray(carrito) ? carrito.map(item => ({ ...item, id: String(item.id) })) : [];
 let categoriaActiva = "TODOS";
+let listaFiltrada = [];
+let limiteVisible = PRODUCTOS_POR_PAGINA;
 let modoMonedaBs = false;
 let toastTimeout;
 let zonaDeliverySeleccionada = "";
@@ -73,11 +107,16 @@ function cargarDatosDesdeCacheLocal() {
   const configGuardada = localStorage.getItem(CACHE_KEY_CONFIG);
 
   if (tiempoGuardado && prodsGuardados && (Date.now() - Number(tiempoGuardado) < CACHE_EXPIRACION_MS)) {
-    productosList = JSON.parse(prodsGuardados);
-    if (configGuardada) {
-      storeConfig = { ...storeConfig, ...JSON.parse(configGuardada) };
+    try {
+      productosList = prepararProductos(JSON.parse(prodsGuardados));
+      if (configGuardada) {
+        storeConfig = { ...storeConfig, ...JSON.parse(configGuardada) };
+      }
+    } catch (e) {
+      console.warn("Caché local corrupto, se ignora.", e);
+      localStorage.removeItem(CACHE_KEY_TIME);
+      return false;
     }
-    productosList.sort((a, b) => Number(b.ventas || 0) - Number(a.ventas || 0));
     procesarCargaTienda();
     return true;
   }
@@ -89,8 +128,7 @@ async function cargarProductosCSVLocal() {
   try {
     const response = await fetch(CSV_URL);
     const dataText = await response.text();
-    productosList = parsearCSV(dataText);
-    productosList.sort((a, b) => Number(b.ventas || 0) - Number(b.ventas || 0));
+    productosList = prepararProductos(parsearCSV(dataText));
     procesarCargaTienda();
   } catch (error) {
     console.error("Error al cargar el archivo CSV local:", error);
@@ -129,8 +167,13 @@ function parsearCSV(text) {
 
 function procesarCargaTienda() {
   aplicarConfiguracion();
+  // Si la categoría activa ya no existe tras sincronizar, volver a TODOS
+  const categoriasValidas = new Set(productosList.map(p => p.categoria));
+  if (categoriaActiva !== "TODOS" && !categoriasValidas.has(categoriaActiva)) {
+    categoriaActiva = "TODOS";
+  }
   renderizarCategorias();
-  renderizarProductos(productosList.slice(0, 20));
+  filtrarProductos(true); // respeta búsqueda, categoría y "Ver más" actuales
   actualizarContadorCarrito();
 }
 
@@ -149,8 +192,7 @@ async function sincronizarConGoogleSheets() {
         huboCambios = true;
       }
       if (data.productos && data.productos.length > 0) {
-        productosList = data.productos;
-        productosList.sort((a, b) => Number(b.ventas || 0) - Number(b.ventas || 0));
+        productosList = prepararProductos(data.productos);
         localStorage.setItem(CACHE_KEY_PRODS, JSON.stringify(productosList));
         huboCambios = true;
       }
@@ -225,8 +267,8 @@ function renderizarCategorias() {
   const categorias = ["TODOS", ...new Set(productosList.map(p => p.categoria).filter(Boolean))];
   
   container.innerHTML = categorias.map(cat => `
-    <button class="cat-btn ${cat === categoriaActiva ? 'active' : ''}" onclick="seleccionarCategoria('${cat}')">
-      ${cat}
+    <button class="cat-btn ${cat === categoriaActiva ? 'active' : ''}" data-cat="${escapeHTML(cat)}" onclick="seleccionarCategoria(this.dataset.cat)">
+      ${escapeHTML(cat)}
     </button>
   `).join("");
 }
@@ -237,15 +279,14 @@ function seleccionarCategoria(cat) {
   filtrarProductos();
 }
 
-// Renderizar Productos
-// 5. Renderizar Productos (Con etiquetas de Stock Agotado y Productos Populares)
+// Renderizar Productos (con etiquetas de Agotado y Más Vendido)
 function renderizarProductos(lista) {
   const grid = document.getElementById("grid-productos");
   if (!grid) return;
   grid.innerHTML = "";
 
   if (lista.length === 0) {
-    grid.innerHTML = "<p style='grid-column: span 2; text-align: center; color: #64748b;'>No se encontraron productos disponibles.</p>";
+    grid.innerHTML = "<p style='grid-column: 1 / -1; text-align: center; color: #64748b;'>No se encontraron productos disponibles.</p>";
     return;
   }
 
@@ -253,26 +294,26 @@ function renderizarProductos(lista) {
   const simAlt = storeConfig.simbolo_moneda_alt || "Bs.";
 
   lista.forEach(prod => {
-    const precioUSD = Number(prod.precio_usd);
+    const precioUSD = parsePrecio(prod.precio_usd);
     const precioBs = precioUSD * tasa;
-    const stockActual = Number(prod.stock !== undefined ? prod.stock : 99); // Por defecto stock libre si no se especifica
+    const stockActual = Number(prod.stock !== undefined ? prod.stock : 99); // Sin columna stock = libre
     const ventasCount = Number(prod.ventas || 0);
     const estaAgotado = stockActual <= 0;
+    const unidad = escapeHTML(prod.unidad_medida || "Unidad");
 
-    const textoPrecioPrincipal = modoMonedaBs 
-      ? `${simAlt} ${precioBs.toFixed(2)}` 
+    const textoPrecioPrincipal = modoMonedaBs
+      ? `${simAlt} ${precioBs.toFixed(2)}`
       : `$${precioUSD.toFixed(2)}`;
-      
-    const textoPrecioSecundario = modoMonedaBs 
-      ? `($${precioUSD.toFixed(2)}) / ${prod.unidad_medida || 'Unidad'}` 
-      : `(${simAlt} ${precioBs.toFixed(2)}) / ${prod.unidad_medida || 'Unidad'}`;
 
-    // Insignias dinámicas (Popular / Agotado)
+    const textoPrecioSecundario = modoMonedaBs
+      ? `($${precioUSD.toFixed(2)}) / ${unidad}`
+      : `(${simAlt} ${precioBs.toFixed(2)}) / ${unidad}`;
+
     let badgeHTML = "";
     if (estaAgotado) {
       badgeHTML = `<span class="product-badge badge-agotado">Agotado</span>`;
-    } else if (ventasCount >= 10) { // Umbral de ejemplo para considerar un producto popular
-      badgeHTML = `<span class="product-badge badge-popular"><i class="fa-solid fa-fire"><b> Más Vendido</b></i></span>`;
+    } else if (ventasCount >= 10) {
+      badgeHTML = `<span class="product-badge badge-popular"><i class="fa-solid fa-fire"></i> Más Vendido</span>`;
     }
 
     const card = document.createElement("div");
@@ -280,16 +321,16 @@ function renderizarProductos(lista) {
     card.innerHTML = `
       <div style="position: relative;">
         ${badgeHTML}
-        <img class="product-img" src="${prod.imagen_url || 'https://ivanguillermo.github.io/mambamarket/assets/mamba_logo.jpg'  }" alt="${prod.nombre}" loading="lazy">
-        <span class="product-brand">${prod.marca || ''}</span>
-        <h4 class="product-title">${prod.nombre}</h4>
+        <img class="product-img" src="${escapeHTML(prod.imagen_url || IMG_POR_DEFECTO)}" alt="${escapeHTML(prod.nombre)}" loading="lazy">
+        <span class="product-brand">${escapeHTML(prod.marca || '')}</span>
+        <h4 class="product-title">${escapeHTML(prod.nombre)}</h4>
       </div>
       <div>
         <div class="product-price-main">${textoPrecioPrincipal}</div>
         <div class="product-price-sub">${textoPrecioSecundario}</div>
-        ${estaAgotado 
-          ? `<button class="btn-add btn-disabled" disabled>No disponible</button>` 
-          : `<button class="btn-add" onclick="agregarAlCarrito('${prod.id_producto}')"><i class="fa-solid fa-plus"></i> Agregar</button>`
+        ${estaAgotado
+          ? `<button class="btn-add btn-disabled" disabled>No disponible</button>`
+          : `<button class="btn-add" data-id="${escapeHTML(prod.id_producto)}" onclick="agregarAlCarrito(this.dataset.id)"><i class="fa-solid fa-plus"></i> Agregar</button>`
         }
       </div>
     `;
@@ -297,17 +338,46 @@ function renderizarProductos(lista) {
   });
 }
 
-// Filtro de Búsqueda
-function filtrarProductos() {
+// Filtro de búsqueda + categoría + paginación ("Ver más")
+// filtrarProductos() reinicia la paginación; filtrarProductos(true) la conserva.
+function filtrarProductos(mantenerLimite) {
+  if (mantenerLimite !== true) limiteVisible = PRODUCTOS_POR_PAGINA;
+
   const inputBusqueda = document.getElementById("input-busqueda");
-  const query = inputBusqueda ? inputBusqueda.value.toLowerCase() : "";
-  
-  const filtrados = productosList.filter(prod => {
+  const query = inputBusqueda ? inputBusqueda.value.toLowerCase().trim() : "";
+
+  listaFiltrada = productosList.filter(prod => {
     const coincideCat = categoriaActiva === "TODOS" || prod.categoria === categoriaActiva;
-    const coincideTexto = prod.nombre.toLowerCase().includes(query) || (prod.marca && prod.marca.toLowerCase().includes(query));
+    const nombre = String(prod.nombre || "").toLowerCase();
+    const marca = String(prod.marca || "").toLowerCase();
+    const categoria = String(prod.categoria || "").toLowerCase();
+    const coincideTexto = nombre.includes(query) || marca.includes(query) || categoria.includes(query);
     return coincideCat && coincideTexto;
   });
-  renderizarProductos(filtrados);
+
+  renderizarProductos(listaFiltrada.slice(0, limiteVisible));
+  actualizarBotonVerMas();
+}
+
+function actualizarBotonVerMas() {
+  let cont = document.getElementById("ver-mas-container");
+  if (!cont) {
+    const grid = document.getElementById("grid-productos");
+    if (!grid) return;
+    cont = document.createElement("div");
+    cont.id = "ver-mas-container";
+    cont.style.cssText = "text-align: center; margin: 20px 0;";
+    grid.insertAdjacentElement("afterend", cont);
+  }
+  const restantes = listaFiltrada.length - limiteVisible;
+  cont.innerHTML = restantes > 0
+    ? `<button class="btn-primary" style="max-width: 260px; display: block; margin: 0 auto;" onclick="verMasProductos()">Ver más productos (${restantes})</button>`
+    : "";
+}
+
+function verMasProductos() {
+  limiteVisible += PRODUCTOS_POR_PAGINA;
+  filtrarProductos(true);
 }
 
 // Switch de Moneda
@@ -317,7 +387,7 @@ function toggleMoneda() {
   if (labelCurrency) {
     labelCurrency.textContent = modoMonedaBs ? "Ver en USD" : "Ver en Bs.";
   }
-  filtrarProductos();
+  filtrarProductos(true);
   
   const modalCarrito = document.getElementById("modal-carrito");
   if (modalCarrito && !modalCarrito.classList.contains("hidden")) {
@@ -327,22 +397,18 @@ function toggleMoneda() {
 
 // Manejo del Carrito
 function agregarAlCarrito(id) {
-  const prod = productosList.find(p => p.id_producto === id);
+  id = String(id);
+  const prod = productosList.find(p => String(p.id_producto) === id);
   if (!prod) return;
 
-  // Asegurar que el precio sea un número válido sin importar si viene con coma o punto
-  let precioLimpio = Number(String(prod.precio_usd).replace(',', '.')) || 0;
-  if (typeof precioLimpio === 'string') {
-    precioLimpio = Number(precioLimpio.replace(',', '.'));
-  }
-  precioLimpio = Number(precioLimpio) || 0;
+  const precioLimpio = parsePrecio(prod.precio_usd);
 
   const itemEnCarrito = carrito.find(item => item.id === id);
   if (itemEnCarrito) {
     itemEnCarrito.cantidad += 1;
   } else {
     carrito.push({
-      id: prod.id_producto,
+      id: String(prod.id_producto),
       nombre: prod.nombre,
       precio: precioLimpio,
       unidad: prod.unidad_medida || 'Unidad',
@@ -356,7 +422,7 @@ function agregarAlCarrito(id) {
 }
 
 function modificarCantidad(id, delta) {
-  const index = carrito.findIndex(item => item.id === id);
+  const index = carrito.findIndex(item => item.id === String(id));
   if (index === -1) return;
 
   carrito[index].cantidad += delta;
@@ -370,7 +436,7 @@ function modificarCantidad(id, delta) {
 }
 
 function eliminarDelCarrito(id) {
-  carrito = carrito.filter(item => item.id !== id);
+  carrito = carrito.filter(item => item.id !== String(id));
   guardarCarrito();
   actualizarContadorCarrito();
   renderizarCarrito();
@@ -430,14 +496,14 @@ function renderizarCarrito() {
     row.className = "cart-item-row";
     row.innerHTML = `
       <div class="cart-item-info">
-        <div class="cart-item-name">${item.nombre}</div>
+        <div class="cart-item-name">${escapeHTML(item.nombre)}</div>
         <div class="cart-item-price">$${item.precio.toFixed(2)} c/u</div>
       </div>
       <div class="cart-qty-controls">
-        <button class="btn-qty" onclick="modificarCantidad('${item.id}', -1)">-</button>
+        <button class="btn-qty" data-id="${escapeHTML(item.id)}" onclick="modificarCantidad(this.dataset.id, -1)">-</button>
         <span style="font-weight: 600; font-size: 13px;">${item.cantidad}</span>
-        <button class="btn-qty" onclick="modificarCantidad('${item.id}', 1)">+</button>
-        <button class="btn-remove" onclick="eliminarDelCarrito('${item.id}')" title="Eliminar">
+        <button class="btn-qty" data-id="${escapeHTML(item.id)}" onclick="modificarCantidad(this.dataset.id, 1)">+</button>
+        <button class="btn-remove" data-id="${escapeHTML(item.id)}" onclick="eliminarDelCarrito(this.dataset.id)" title="Eliminar">
           <i class="fa-regular fa-trash-can"></i>
         </button>
       </div>
@@ -627,3 +693,5 @@ window.toggleCarrito = toggleCarrito;
 window.cambiarTipoEntrega = cambiarTipoEntrega;
 window.cambiarZonaDelivery = cambiarZonaDelivery;
 window.iniciarCheckout = iniciarCheckout;
+window.filtrarProductos = filtrarProductos;
+window.verMasProductos = verMasProductos;
