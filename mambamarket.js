@@ -1,6 +1,6 @@
 // mambamarket.js - Lógica híbrida con Caché Local Inteligente y Sincronización Silenciosa
 
-const API_URL = "https://script.google.com/macros/s/AKfycbxYr-CK3-uTvdKZz-GItmYnGbaLAAzrtWlCPu3Pr9-KE3UNQBKsTnRMpU4Dy_Sw_pRqQw/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzNIXeqozCsw1FIzTHpekIMvjuBu12IVm134drM2JpOOCPRIarQu5VISeN6PnpEmmhwbA/exec";
 const WHATSAPP_NUMERO = "584126216661"; 
 const CSV_URL = "productos.csv";
 
