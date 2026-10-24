@@ -689,3 +689,18 @@ body {
   cursor: not-allowed !important;
   box-shadow: none !important;
 }
+
+
+/* Checkout: campos de cliente y carrito con scroll en pantallas pequeñas */
+.checkout-input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: #fff;
+}
+.cart-content { overflow: hidden; }
+.cart-items { min-height: 90px; }
+.cart-footer { max-height: 58vh; overflow-y: auto; }
+.btn-primary:disabled { opacity: 0.6; cursor: wait; }
