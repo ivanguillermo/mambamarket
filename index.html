@@ -121,6 +121,12 @@
         </div>
         <!-- Agrega esto dentro del cart-footer o antes de los botones de pago en index.html -->
         <div class="checkout-delivery-box">
+          <!-- Datos del cliente -->
+          <label><i class="fa-solid fa-user"></i> Tus datos:</label>
+          <input type="text" id="input-nombre-cliente" class="checkout-input" placeholder="Nombre y apellido *" autocomplete="name" maxlength="80" oninput="guardarDatosCheckout()">
+          <input type="tel" id="input-telefono-cliente" class="checkout-input" placeholder="Teléfono (WhatsApp) *" autocomplete="tel" maxlength="20" oninput="guardarDatosCheckout()" style="margin-top: 6px;">
+          <input type="email" id="input-correo-cliente" class="checkout-input" placeholder="Correo (opcional, para tu factura)" autocomplete="email" maxlength="100" oninput="guardarDatosCheckout()" style="margin-top: 6px; margin-bottom: 10px;">
+
           <!-- Tipo de Entrega -->
           <label><i class="fa-solid fa-store"></i> Tipo de Entrega:</label>
           <select id="select-tipo-entrega" onchange="cambiarTipoEntrega(this.value)">
@@ -152,6 +158,10 @@
               <option value="Zelle">Zelle</option>
               <option value="Binance Pay">Binance Pay (USDT)</option>
             </select>
+          </div>
+          <div id="contenedor-ref-pagomovil" style="margin-top: 10px;">
+            <label><i class="fa-solid fa-hashtag"></i> Referencia del Pago Móvil (opcional):</label>
+            <input type="text" id="input-ref-pagomovil" class="checkout-input" placeholder="Últimos dígitos de la referencia" maxlength="30" oninput="guardarDatosCheckout()">
           </div>
         </div>
         <button id="btn-checkout" class="btn-primary" onclick="iniciarCheckout()">Continuar Pedido</button>
