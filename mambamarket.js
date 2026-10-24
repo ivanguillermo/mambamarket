@@ -1,6 +1,6 @@
 // mambamarket.js - Lógica híbrida con Caché Local Inteligente y Sincronización Silenciosa
 
-const API_URL = "https://script.google.com/macros/s/AKfycbyjUzt_WJXadO3SD-rMXAifMa8zIDS41sxVh7E0ihLSDeheB7_Ll9C64xLopg4UR0t68g/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbztLJ7jR6YXcTLJxmdCRa7ltE-yKNK9Z4DcLQN0YLtWagzy_RNfzVlADtRgRc8882U5cw/exec";
 const WHATSAPP_NUMERO = "584126216661"; 
 const CSV_URL = "productos.csv";
 
@@ -62,6 +62,9 @@ let zonaDeliverySeleccionada = "";
 let tipoEntregaSeleccionada = "delivery"; // "delivery" o "pickup"
 let direccionCliente = "";
 let metodoPagoSeleccionado = "Pago Móvil (Bs.)";
+let datosCliente = { nombre: "", telefono: "", correo: "" };
+let refPagoMovil = "";
+const CLAVE_CLIENTE = "mamba_cliente";
 
 // Claves para el caché local (expira cada 30 minutos)
 const CACHE_KEY_PRODS = "mamba_cache_productos";
@@ -567,11 +570,39 @@ function cambiarZonaDelivery(idZona) {
 }
 
 function guardarDatosCheckout() {
-  const inputDir = document.getElementById("input-direccion-cliente");
-  if (inputDir) direccionCliente = inputDir.value;
-  
+  const val = (id) => { const el = document.getElementById(id); return el ? el.value : ""; };
+
+  direccionCliente = val("input-direccion-cliente");
+  datosCliente = {
+    nombre: val("input-nombre-cliente"),
+    telefono: val("input-telefono-cliente"),
+    correo: val("input-correo-cliente")
+  };
+  refPagoMovil = val("input-ref-pagomovil");
+
   const selectPago = document.getElementById("select-metodo-pago");
   if (selectPago) metodoPagoSeleccionado = selectPago.value;
+
+  // La referencia solo aplica si paga con Pago Móvil
+  const wrapRef = document.getElementById("contenedor-ref-pagomovil");
+  if (wrapRef) wrapRef.style.display = metodoPagoSeleccionado.indexOf("Pago M") === 0 ? "block" : "none";
+
+  // Recordar datos del cliente para su próxima compra
+  try {
+    localStorage.setItem(CLAVE_CLIENTE, JSON.stringify({ ...datosCliente, direccion: direccionCliente }));
+  } catch (e) { /* almacenamiento lleno o bloqueado: no es crítico */ }
+}
+
+function cargarDatosCliente() {
+  try {
+    const g = JSON.parse(localStorage.getItem(CLAVE_CLIENTE)) || {};
+    const set = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
+    set("input-nombre-cliente", g.nombre);
+    set("input-telefono-cliente", g.telefono);
+    set("input-correo-cliente", g.correo);
+    set("input-direccion-cliente", g.direccion);
+  } catch (e) { /* datos guardados corruptos: se ignoran */ }
+  guardarDatosCheckout();
 }
 
 // Toast No Invasivo
@@ -588,66 +619,184 @@ function mostrarToast(mensaje) {
   }, 2200);
 }
 
-// Finiquitar Pedido por WhatsApp
-function iniciarCheckout() {
+// Totales calculados en la web. El servidor los recalcula con los precios reales del Sheet.
+function calcularPedidoLocal() {
+  const tasa = Number(storeConfig.tasa_cambio) || 1;
+  let subtotal = 0;
+  let pesoKg = 0;
+  carrito.forEach(item => {
+    subtotal += item.precio * item.cantidad;
+    pesoKg += (item.unidad === "Kg" || item.unidad === "K") ? item.cantidad : (item.cantidad * 0.5);
+  });
+
+  let costoEnvio = 0;
+  let zonaObj = null;
+  if (tipoEntregaSeleccionada === "delivery") {
+    zonaObj = (storeConfig.zonas_delivery || []).find(z => z.id === zonaDeliverySeleccionada) || null;
+    if (zonaObj) {
+      costoEnvio = Number(zonaObj.tarifa_base) || 0;
+      if (pesoKg > zonaObj.peso_incluido_kg) {
+        costoEnvio += (pesoKg - zonaObj.peso_incluido_kg) * (storeConfig.costo_por_kg_extra || 0.50);
+      }
+    }
+  }
+  const total = subtotal + costoEnvio;
+  return { subtotal, pesoKg, costoEnvio, zonaObj, total, totalBs: total * tasa };
+}
+
+// Devuelve { id, mensaje } si falta algo, o null si todo está bien
+function validarCheckout() {
+  if (datosCliente.nombre.trim().length < 2) {
+    return { id: "input-nombre-cliente", mensaje: "Escribe tu nombre para poder procesar el pedido." };
+  }
+  if (datosCliente.telefono.replace(/\D/g, "").length < 10) {
+    return { id: "input-telefono-cliente", mensaje: "Escribe un teléfono válido (con código de área)." };
+  }
+  const correo = datosCliente.correo.trim();
+  if (correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
+    return { id: "input-correo-cliente", mensaje: "El correo no parece válido. Corrígelo o déjalo en blanco." };
+  }
+  if (tipoEntregaSeleccionada === "delivery") {
+    const hayZonas = (storeConfig.zonas_delivery || []).length > 0;
+    if (hayZonas && !zonaDeliverySeleccionada) {
+      return { id: "select-zona-delivery", mensaje: "Elige tu zona de entrega." };
+    }
+    if (direccionCliente.trim().length < 5) {
+      return { id: "input-direccion-cliente", mensaje: "Escribe tu dirección o un punto de referencia." };
+    }
+  }
+  return null;
+}
+
+// Guarda el pedido en la hoja "Preordenes" y luego abre WhatsApp con el resumen
+async function iniciarCheckout() {
   if (carrito.length === 0) {
     alert("Tu carrito está vacío.");
     return;
   }
 
-  guardarDatosCheckout(); // Asegurar capturar inputs actuales
+  guardarDatosCheckout();
 
-  const tasa = Number(storeConfig.tasa_cambio) || 1;
+  const problema = validarCheckout();
+  if (problema) {
+    alert(problema.mensaje);
+    const el = document.getElementById(problema.id);
+    if (el) el.focus();
+    return;
+  }
+
+  const btn = document.getElementById("btn-checkout");
+  const textoBtn = btn ? btn.textContent : "";
+  if (btn) { btn.disabled = true; btn.textContent = "Enviando pedido..."; }
+
+  // Se abre la ventana ANTES de esperar al servidor: si no, el navegador bloquea el popup de WhatsApp
+  const ventanaWA = window.open("", "_blank");
+
+  const local = calcularPedidoLocal();
+  const esDelivery = tipoEntregaSeleccionada === "delivery";
+  let registro = null;
+
+  try {
+    const controlador = new AbortController();
+    const temporizador = setTimeout(() => controlador.abort(), 20000);
+
+    const resp = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" }, // evita el preflight CORS de Apps Script
+      body: JSON.stringify({
+        action: "crearPedido",
+        cliente: {
+          nombre: datosCliente.nombre.trim(),
+          telefono: datosCliente.telefono.trim(),
+          correo: datosCliente.correo.trim()
+        },
+        items: carrito.map(i => ({ id: i.id, cantidad: i.cantidad })),
+        tipo_entrega: tipoEntregaSeleccionada,
+        zona_id: zonaDeliverySeleccionada,
+        zona_nombre: local.zonaObj ? local.zonaObj.nombre : "",
+        costo_envio_cliente: local.costoEnvio,
+        direccion: esDelivery ? direccionCliente.trim() : "",
+        metodo_pago: metodoPagoSeleccionado,
+        ref_pagomovil: metodoPagoSeleccionado.indexOf("Pago M") === 0 ? refPagoMovil.trim() : ""
+      }),
+      signal: controlador.signal
+    });
+    clearTimeout(temporizador);
+    const data = await resp.json();
+
+    if (data.status === "success") {
+      registro = data;
+    } else if (data.validacion) {
+      // Error "de negocio" (producto agotado, stock, dato inválido): se avisa y NO se continúa
+      if (ventanaWA) ventanaWA.close();
+      alert(data.message);
+      if (btn) { btn.disabled = false; btn.textContent = textoBtn; }
+      return;
+    } else {
+      console.warn("El servidor no pudo registrar el pedido:", data.message);
+    }
+  } catch (err) {
+    // Sin internet o servidor lento: no se pierde la venta, se manda igual por WhatsApp
+    console.warn("No se pudo registrar el pedido en el Sheet:", err);
+  }
+
+  // Si el servidor respondió, sus totales (con precios reales) mandan sobre los locales
+  const srv = registro && registro.pedido ? registro.pedido : null;
   const simAlt = storeConfig.simbolo_moneda_alt || "Bs.";
-  
-  let mensaje = `*¡Hola Mamba Market! Deseo realizar el siguiente pedido:*\n\n`;
-  let totalProductosUSD = 0;
-  let pesoTotalKg = 0;
+  const subtotal = srv ? srv.subtotal_usd : local.subtotal;
+  const costoEnvio = srv ? srv.costo_envio_usd : local.costoEnvio;
+  const totalUSD = srv ? srv.total_usd : local.total;
+  const totalBs = srv && srv.total_bs !== "" ? srv.total_bs : local.totalBs;
+  const pesoKg = srv ? srv.peso_kg : local.pesoKg;
+  const zonaTexto = srv && srv.zona ? srv.zona : (local.zonaObj ? local.zonaObj.nombre : "N/A");
+
+  let mensaje = `*¡Hola Mamba Market! Deseo realizar el siguiente pedido:*\n`;
+  if (registro) mensaje += `*Pedido N°:* ${registro.id}\n`;
+  mensaje += `*Cliente:* ${datosCliente.nombre.trim()}\n*Teléfono:* ${datosCliente.telefono.trim()}\n\n`;
 
   carrito.forEach((item, index) => {
-    const subtotal = item.precio * item.cantidad;
-    totalProductosUSD += subtotal;
-    pesoTotalKg += (item.unidad === "Kg" || item.unidad === "K") ? item.cantidad : (item.cantidad * 0.5);
-    mensaje += `${index + 1}. *${item.nombre}* \n   Cantidad: ${item.cantidad} x $${item.precio.toFixed(2)} = *$${subtotal.toFixed(2)}*\n`;
+    const sub = item.precio * item.cantidad;
+    mensaje += `${index + 1}. *${item.nombre}* \n   Cantidad: ${item.cantidad} x $${item.precio.toFixed(2)} = *$${sub.toFixed(2)}*\n`;
   });
 
-  let costoDeliveryUSD = 0;
-  let nombreZonaTexto = "N/A";
-  const zonas = storeConfig.zonas_delivery || [];
-
-  if (tipoEntregaSeleccionada === "delivery") {
-    const zonaObj = zonas.find(z => z.id === zonaDeliverySeleccionada);
-    if (zonaObj) {
-      nombreZonaTexto = zonaObj.nombre;
-      costoDeliveryUSD = zonaObj.tarifa_base;
-      if (pesoTotalKg > zonaObj.peso_incluido_kg) {
-        costoDeliveryUSD += (pesoTotalKg - zonaObj.peso_incluido_kg) * (storeConfig.costo_por_kg_extra || 0.50);
-      }
-    }
-  }
-
-  const totalGeneralUSD = totalProductosUSD + costoDeliveryUSD;
-  const totalBs = totalGeneralUSD * tasa;
-
   mensaje += `\n--------------------------\n`;
-  mensaje += `*Subtotal Productos:* $${totalProductosUSD.toFixed(2)}\n`;
-  mensaje += `*Modalidad:* ${tipoEntregaSeleccionada === 'delivery' ? 'Delivery a domicilio' : 'Retiro en Tienda (Pickup)'}\n`;
-  
-  if (tipoEntregaSeleccionada === 'delivery') {
-    mensaje += `*Zona:* ${nombreZonaTexto}\n`;
-    mensaje += `*Dirección:* ${direccionCliente || 'No especificada'}\n`;
-    mensaje += `*Costo Delivery:* $${costoDeliveryUSD.toFixed(2)} (~${pesoTotalKg.toFixed(1)} kg)\n`;
+  mensaje += `*Subtotal Productos:* $${Number(subtotal).toFixed(2)}\n`;
+  mensaje += `*Modalidad:* ${esDelivery ? 'Delivery a domicilio' : 'Retiro en Tienda (Pickup)'}\n`;
+  if (esDelivery) {
+    mensaje += `*Zona:* ${zonaTexto}\n`;
+    mensaje += `*Dirección:* ${direccionCliente.trim()}\n`;
+    mensaje += `*Costo Delivery:* $${Number(costoEnvio).toFixed(2)} (~${Number(pesoKg).toFixed(1)} kg)\n`;
   }
-
   mensaje += `*Método de Pago:* ${metodoPagoSeleccionado}\n`;
+  if (metodoPagoSeleccionado.indexOf("Pago M") === 0 && refPagoMovil.trim()) {
+    mensaje += `*Referencia Pago Móvil:* ${refPagoMovil.trim()}\n`;
+  }
   mensaje += `--------------------------\n`;
-  mensaje += `*TOTAL A PAGAR:* $${totalGeneralUSD.toFixed(2)} (${simAlt} ${totalBs.toFixed(2)})\n`;
+  mensaje += `*TOTAL A PAGAR:* $${Number(totalUSD).toFixed(2)} (${simAlt} ${Number(totalBs).toFixed(2)})\n`;
   mensaje += `--------------------------\n`;
   mensaje += `Quedo atento para coordinar el pago. ¡Gracias!`;
 
   const urlWhatsApp = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(mensaje)}`;
-  window.open(urlWhatsApp, "_blank");
+  if (ventanaWA && !ventanaWA.closed) {
+    ventanaWA.location.href = urlWhatsApp;
+  } else {
+    window.location.href = urlWhatsApp; // el navegador bloqueó la ventana: se usa la misma pestaña
+  }
+
+  if (btn) { btn.disabled = false; btn.textContent = textoBtn; }
+
+  // Pedido registrado: se vacía el carrito para no duplicarlo
+  if (registro) {
+    carrito = [];
+    guardarCarrito();
+    actualizarContadorCarrito();
+    renderizarCarrito();
+    const modal = document.getElementById("modal-carrito");
+    if (modal) modal.classList.add("hidden");
+    mostrarToast(`Pedido ${registro.id} registrado`);
+  }
 }
+
 async function pedirPermisoNotificaciones() {
   if (!("Notification" in window)) {
     console.warn("Este navegador no soporta notificaciones.");
@@ -695,3 +844,7 @@ window.cambiarZonaDelivery = cambiarZonaDelivery;
 window.iniciarCheckout = iniciarCheckout;
 window.filtrarProductos = filtrarProductos;
 window.verMasProductos = verMasProductos;
+window.guardarDatosCheckout = guardarDatosCheckout;
+
+// Rellena los datos del cliente guardados de compras anteriores
+cargarDatosCliente();
